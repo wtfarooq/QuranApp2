@@ -3,4 +3,7 @@
     <string name="surah">Surahs</string>
     <string name="juz">Juz</string>
     <string name="title">Quran</string>
+    <string name="bookmarks">Saves</string>
+    <string name="open_bookmark">Open bookmark</string>
+    <string name="bookmark">Bookmark</string>
 </resources>

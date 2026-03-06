@@ -635,4 +635,26 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         cursor.close()
         return list
     }
+
+    fun getSurahForPage(page: Int): String {
+        val db = this.readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT $COL_NAME FROM $TABLE_SURAH WHERE $COL_PAGE_NUMBER <= ? ORDER BY $COL_PAGE_NUMBER DESC LIMIT 1",
+            arrayOf(page.toString())
+        )
+        val name = if (cursor.moveToFirst()) cursor.getString(0) else ""
+        cursor.close()
+        return name
+    }
+
+    fun getJuzForPage(page: Int): String {
+        val db = this.readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT $COL_ID, $COL_NAME FROM $TABLE_JUZ WHERE $COL_PAGE_NUMBER <= ? ORDER BY $COL_PAGE_NUMBER DESC LIMIT 1",
+            arrayOf(page.toString())
+        )
+        val name = if (cursor.moveToFirst()) "Juz ${cursor.getInt(0)} - ${cursor.getString(1)}" else ""
+        cursor.close()
+        return name
+    }
 }

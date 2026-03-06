@@ -1,12 +1,17 @@
 package com.example.quranapp2
 
 import android.os.Bundle
+import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.viewpager2.widget.ViewPager2
 
 class PageActivity : AppCompatActivity() {
     private var pageNum: Int? = null
     private lateinit var viewPager: ViewPager2
+    private lateinit var bookmarkBtn: ImageButton
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_page)
@@ -623,10 +628,58 @@ class PageActivity : AppCompatActivity() {
         )
 
         viewPager = findViewById(R.id.pageViewPager2)
+        bookmarkBtn = findViewById(R.id.bookmarkBtn)
         val adapter = PageAdapter(list)
 
         viewPager.adapter = adapter
         viewPager.currentItem = pageNum!! - 1
+
+        updateBookmarkIcon(currentPage())
+
+        viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                updateBookmarkIcon(position + 1)
+                saveLastPage(position + 1)
+            }
+        })
+
+        saveLastPage(currentPage())
+
+        bookmarkBtn.setOnClickListener {
+            toggleBookmark(currentPage())
+        }
+    }
+
+    private fun currentPage(): Int = viewPager.currentItem + 1
+
+    private fun saveLastPage(page: Int) {
+        getSharedPreferences("reading", MODE_PRIVATE)
+            .edit { putInt("lastPage", page) }
+    }
+
+    private fun toggleBookmark(page: Int) {
+        val prefs = getSharedPreferences("bookmarks", MODE_PRIVATE)
+        val bookmarks = prefs.getStringSet("pages", mutableSetOf())!!.toMutableSet()
+        val pageStr = page.toString()
+        if (bookmarks.contains(pageStr)) {
+            bookmarks.remove(pageStr)
+        } else {
+            bookmarks.add(pageStr)
+        }
+        prefs.edit { putStringSet("pages", bookmarks) }
+        updateBookmarkIcon(page)
+    }
+
+    private fun updateBookmarkIcon(page: Int) {
+        val prefs = getSharedPreferences("bookmarks", MODE_PRIVATE)
+        val bookmarks = prefs.getStringSet("pages", mutableSetOf())!!
+        if (bookmarks.contains(page.toString())) {
+            bookmarkBtn.setImageResource(R.drawable.bookmark_filled)
+            bookmarkBtn.setColorFilter(ContextCompat.getColor(this, R.color.colorAccent))
+        } else {
+            bookmarkBtn.setImageResource(R.drawable.bookmark)
+            bookmarkBtn.setColorFilter(ContextCompat.getColor(this, android.R.color.darker_gray))
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
