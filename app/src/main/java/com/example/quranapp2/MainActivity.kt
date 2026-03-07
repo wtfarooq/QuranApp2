@@ -44,9 +44,9 @@ class MainActivity : AppCompatActivity() {
 
         val appBarLayout: AppBarLayout = findViewById(R.id.appBarLayout)
 
-        appBarLayout.addOnOffsetChangedListener { _, verticalOffset ->
+        appBarLayout.addOnOffsetChangedListener(AppBarLayout.OnOffsetChangedListener { _, verticalOffset ->
             currentAppBarOffset = verticalOffset
-        }
+        })
 
         darkModeBtn.setOnClickListener {
             oldBackgroundColor = resolveBackgroundColor()
