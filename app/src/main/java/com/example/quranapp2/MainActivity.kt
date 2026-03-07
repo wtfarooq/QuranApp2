@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ImageButton
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import android.os.Bundle
@@ -33,6 +34,8 @@ class MainActivity : AppCompatActivity() {
         overridePendingTransition(0, 0)
         setContentView(R.layout.activity_main)
 
+        val isDarkModeTransition = transitioning
+
         val darkModeBtn: ImageButton = findViewById(R.id.darkModeBtn)
         updateDarkModeIcon(darkModeBtn)
 
@@ -55,14 +58,7 @@ class MainActivity : AppCompatActivity() {
             AppCompatDelegate.setDefaultNightMode(newMode)
         }
 
-        if (savedInstanceState == null) {
-            val lastPage = getSharedPreferences("reading", MODE_PRIVATE).getInt("lastPage", 0)
-            if (lastPage > 0) {
-                val intent = Intent(this, PageActivity::class.java)
-                intent.putExtra("pageNum", lastPage)
-                startActivity(intent)
-            }
-        }
+        updateContinueCard()
 
         val tabLayout: TabLayout = findViewById(R.id.tabLayout)
         val viewPager2: ViewPager2 = findViewById(R.id.viewPager2)
@@ -88,18 +84,20 @@ class MainActivity : AppCompatActivity() {
             }
         }.attach()
 
-        val savedCollapsed = getSharedPreferences("ui_state", MODE_PRIVATE)
-            .getBoolean("appBarCollapsed", false)
-        if (savedCollapsed) {
-            appBarLayout.post {
-                appBarLayout.setExpanded(false, false)
+        if (isDarkModeTransition) {
+            val savedCollapsed = getSharedPreferences("ui_state", MODE_PRIVATE)
+                .getBoolean("appBarCollapsed", false)
+            if (savedCollapsed) {
+                appBarLayout.post {
+                    appBarLayout.setExpanded(false, false)
+                }
             }
         }
     }
 
-    override fun onStop() {
-        super.onStop()
-        saveAppBarOffset()
+    override fun onResume() {
+        super.onResume()
+        updateContinueCard()
     }
 
     private fun saveAppBarOffset() {
@@ -152,6 +150,24 @@ class MainActivity : AppCompatActivity() {
         val mode = getSharedPreferences("settings", MODE_PRIVATE)
             .getInt("nightMode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
         AppCompatDelegate.setDefaultNightMode(mode)
+    }
+
+    private fun updateContinueCard() {
+        val card: View = findViewById(R.id.continueReadingCard)
+        val text: TextView = findViewById(R.id.continueReadingText)
+        val lastPage = getSharedPreferences("reading", MODE_PRIVATE).getInt("lastPage", 0)
+
+        if (lastPage > 0) {
+            text.text = "Continue · Page $lastPage"
+            card.visibility = View.VISIBLE
+            card.setOnClickListener {
+                val intent = Intent(this, PageActivity::class.java)
+                intent.putExtra("pageNum", lastPage)
+                startActivity(intent)
+            }
+        } else {
+            card.visibility = View.GONE
+        }
     }
 
     private fun updateDarkModeIcon(btn: ImageButton) {

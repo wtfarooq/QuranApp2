@@ -22,4 +22,16 @@
         android:contentDescription="@string/bookmark"
         android:src="@drawable/bookmark" />
 
+    <ImageButton
+        android:id="@+id/darkModeBtn"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="8dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/toggle_dark_mode"
+        android:src="@drawable/ic_dark_mode"
+        android:tint="?android:attr/textColorPrimary"
+        android:padding="12dp" />
+
 </FrameLayout>

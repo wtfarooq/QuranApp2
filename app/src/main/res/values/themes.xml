@@ -14,12 +14,14 @@
         <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
     </style>
 
-    <style name="ExpandedAppBarTitle" parent="TextAppearance.MaterialComponents.Headline4">
+    <style name="ExpandedAppBarTitle" parent="TextAppearance.MaterialComponents.Headline3">
         <item name="android:textColor">@color/colorAccent</item>
         <item name="android:textSize">30sp</item>
+        <item name="android:textStyle">bold</item>
     </style>
 
-    <style name="CollapsedAppBarTitle" parent="TextAppearance.MaterialComponents.Headline6">
+    <style name="CollapsedAppBarTitle" parent="TextAppearance.MaterialComponents.Headline5">
         <item name="android:textColor">@color/colorAccent</item>
+        <item name="android:textStyle">bold</item>
     </style>
 </resources>
