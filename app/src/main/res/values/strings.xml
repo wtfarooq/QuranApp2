@@ -6,4 +6,6 @@
     <string name="bookmarks">Saves</string>
     <string name="open_bookmark">Open bookmark</string>
     <string name="bookmark">Bookmark</string>
+    <string name="toggle_dark_mode">Toggle dark mode</string>
+    <string name="quran_page">quran page</string>
 </resources>

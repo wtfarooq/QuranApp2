@@ -1,20 +1,52 @@
 package com.example.quranapp2
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.os.Bundle
+import android.util.TypedValue
+import android.view.View
+import android.view.ViewGroup
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.OvershootInterpolator
 import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.viewpager2.widget.ViewPager2
 
 class PageActivity : AppCompatActivity() {
+
+    companion object {
+        var oldBackgroundColor: Int? = null
+        var transitioning = false
+    }
+
     private var pageNum: Int? = null
     private lateinit var viewPager: ViewPager2
     private lateinit var bookmarkBtn: ImageButton
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val mode = getSharedPreferences("settings", MODE_PRIVATE)
+            .getInt("nightMode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+        AppCompatDelegate.setDefaultNightMode(mode)
         super.onCreate(savedInstanceState)
+        overridePendingTransition(0, 0)
         setContentView(R.layout.activity_page)
+
+        val darkModeBtn: ImageButton = findViewById(R.id.darkModeBtn)
+        updateDarkModeIcon(darkModeBtn)
+        playTransitionOverlay()
+        playIconSpinAnimation(darkModeBtn)
+
+        darkModeBtn.setOnClickListener {
+            oldBackgroundColor = resolveBackgroundColor()
+            transitioning = true
+            val isNight = AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_YES
+            val newMode = if (isNight) AppCompatDelegate.MODE_NIGHT_NO else AppCompatDelegate.MODE_NIGHT_YES
+            getSharedPreferences("settings", MODE_PRIVATE).edit { putInt("nightMode", newMode) }
+            AppCompatDelegate.setDefaultNightMode(newMode)
+        }
 
         if(savedInstanceState == null)
             pageNum = intent.getIntExtra("pageNum", 0)
@@ -646,6 +678,11 @@ class PageActivity : AppCompatActivity() {
         saveLastPage(currentPage())
 
         bookmarkBtn.setOnClickListener {
+            val isCurrentlyBookmarked = getSharedPreferences("bookmarks", MODE_PRIVATE)
+                .getStringSet("pages", mutableSetOf())!!.contains(currentPage().toString())
+            if (!isCurrentlyBookmarked) {
+                playBookmarkAnimation()
+            }
             toggleBookmark(currentPage())
         }
     }
@@ -670,6 +707,31 @@ class PageActivity : AppCompatActivity() {
         updateBookmarkIcon(page)
     }
 
+    private fun playBookmarkAnimation() {
+        bookmarkBtn.animate()
+            .scaleX(1.4f).scaleY(1.4f)
+            .setDuration(200)
+            .setInterpolator(OvershootInterpolator(3f))
+            .withEndAction {
+                bookmarkBtn.animate()
+                    .scaleX(1f).scaleY(1f)
+                    .setDuration(200)
+                    .setInterpolator(OvershootInterpolator(3f))
+                    .start()
+            }
+            .start()
+
+        val burst = BurstView(this)
+        val parent = bookmarkBtn.parent as ViewGroup
+        parent.addView(burst, ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+        val cx = bookmarkBtn.x + bookmarkBtn.width / 2f
+        val cy = bookmarkBtn.y + bookmarkBtn.height / 2f
+        burst.startAt(cx, cy)
+    }
+
     private fun updateBookmarkIcon(page: Int) {
         val prefs = getSharedPreferences("bookmarks", MODE_PRIVATE)
         val bookmarks = prefs.getStringSet("pages", mutableSetOf())!!
@@ -687,5 +749,51 @@ class PageActivity : AppCompatActivity() {
 
         if(pageNum != null)
             outState.putInt("rotatePageNum", viewPager.currentItem+1)
+    }
+
+    private fun playTransitionOverlay() {
+        val color = oldBackgroundColor ?: return
+        oldBackgroundColor = null
+
+        val overlay = View(this)
+        overlay.setBackgroundColor(color)
+        val decorView = window.decorView as ViewGroup
+        decorView.addView(overlay, ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+
+        overlay.animate()
+            .alpha(0f)
+            .setDuration(350)
+            .setInterpolator(AccelerateDecelerateInterpolator())
+            .setListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    decorView.removeView(overlay)
+                }
+            })
+            .start()
+    }
+
+    private fun playIconSpinAnimation(btn: ImageButton) {
+        if (!transitioning) return
+        transitioning = false
+        btn.rotation = 0f
+        btn.animate()
+            .rotationBy(360f)
+            .setDuration(300)
+            .setInterpolator(AccelerateDecelerateInterpolator())
+            .start()
+    }
+
+    private fun resolveBackgroundColor(): Int {
+        val typedValue = TypedValue()
+        theme.resolveAttribute(android.R.attr.colorBackground, typedValue, true)
+        return typedValue.data
+    }
+
+    private fun updateDarkModeIcon(btn: ImageButton) {
+        val isNight = AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_YES
+        btn.setImageResource(if (isNight) R.drawable.ic_light_mode else R.drawable.ic_dark_mode)
     }
 }

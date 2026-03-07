@@ -3,18 +3,21 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground"
     xmlns:tools="http://schemas.android.com/tools">
 
     <ImageView
         android:id="@+id/pageImg"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:contentDescription="@string/quran_page"
         tools:src="@drawable/q604" />
     <TextView
         android:id="@+id/pageNum"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textSize="12sp"
+        android:textColor="?android:attr/textColorPrimary"
         android:layout_alignParentBottom="true"
         android:layout_centerHorizontal="true"
         tools:text="604" />

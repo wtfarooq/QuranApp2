@@ -1,18 +1,59 @@
 package com.example.quranapp2
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.content.Intent
+import android.util.TypedValue
+import android.view.View
+import android.view.ViewGroup
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import android.os.Bundle
 import androidx.core.content.ContextCompat
 import androidx.viewpager2.widget.ViewPager2
+import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
+import androidx.core.content.edit
 
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        var oldBackgroundColor: Int? = null
+        var transitioning = false
+    }
+
+    private var currentAppBarOffset = 0
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        applySavedNightMode()
         super.onCreate(savedInstanceState)
+        overridePendingTransition(0, 0)
         setContentView(R.layout.activity_main)
+
+        val darkModeBtn: ImageButton = findViewById(R.id.darkModeBtn)
+        updateDarkModeIcon(darkModeBtn)
+
+        playTransitionOverlay()
+        playIconSpinAnimation(darkModeBtn)
+
+        val appBarLayout: AppBarLayout = findViewById(R.id.appBarLayout)
+
+        appBarLayout.addOnOffsetChangedListener { _, verticalOffset ->
+            currentAppBarOffset = verticalOffset
+        }
+
+        darkModeBtn.setOnClickListener {
+            oldBackgroundColor = resolveBackgroundColor()
+            transitioning = true
+            saveAppBarOffset()
+            val isNight = AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_YES
+            val newMode = if (isNight) AppCompatDelegate.MODE_NIGHT_NO else AppCompatDelegate.MODE_NIGHT_YES
+            getSharedPreferences("settings", MODE_PRIVATE).edit { putInt("nightMode", newMode) }
+            AppCompatDelegate.setDefaultNightMode(newMode)
+        }
 
         if (savedInstanceState == null) {
             val lastPage = getSharedPreferences("reading", MODE_PRIVATE).getInt("lastPage", 0)
@@ -46,5 +87,75 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }.attach()
+
+        val savedCollapsed = getSharedPreferences("ui_state", MODE_PRIVATE)
+            .getBoolean("appBarCollapsed", false)
+        if (savedCollapsed) {
+            appBarLayout.post {
+                appBarLayout.setExpanded(false, false)
+            }
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        saveAppBarOffset()
+    }
+
+    private fun saveAppBarOffset() {
+        getSharedPreferences("ui_state", MODE_PRIVATE)
+            .edit { putBoolean("appBarCollapsed", currentAppBarOffset != 0) }
+    }
+
+    private fun playTransitionOverlay() {
+        val color = oldBackgroundColor ?: return
+        oldBackgroundColor = null
+
+        val overlay = View(this)
+        overlay.setBackgroundColor(color)
+        val decorView = window.decorView as ViewGroup
+        decorView.addView(overlay, ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+
+        overlay.animate()
+            .alpha(0f)
+            .setDuration(350)
+            .setInterpolator(AccelerateDecelerateInterpolator())
+            .setListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    decorView.removeView(overlay)
+                }
+            })
+            .start()
+    }
+
+    private fun playIconSpinAnimation(btn: ImageButton) {
+        if (!transitioning) return
+        transitioning = false
+        btn.rotation = 0f
+        btn.animate()
+            .rotationBy(360f)
+            .setDuration(300)
+            .setInterpolator(AccelerateDecelerateInterpolator())
+            .start()
+    }
+
+    private fun resolveBackgroundColor(): Int {
+        val typedValue = TypedValue()
+        theme.resolveAttribute(android.R.attr.colorBackground, typedValue, true)
+        return typedValue.data
+    }
+
+    private fun applySavedNightMode() {
+        val mode = getSharedPreferences("settings", MODE_PRIVATE)
+            .getInt("nightMode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+        AppCompatDelegate.setDefaultNightMode(mode)
+    }
+
+    private fun updateDarkModeIcon(btn: ImageButton) {
+        val isNight = AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_YES
+        btn.setImageResource(if (isNight) R.drawable.ic_light_mode else R.drawable.ic_dark_mode)
     }
 }

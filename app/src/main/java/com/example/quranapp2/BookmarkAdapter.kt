@@ -1,6 +1,5 @@
 package com.example.quranapp2
 
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,6 +9,7 @@ import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import androidx.core.graphics.toColorInt
+import com.google.android.material.color.MaterialColors
 
 class BookmarkAdapter(
     private val bookmarkList: ArrayList<SurahJuzItem>,
@@ -43,16 +43,19 @@ class BookmarkAdapter(
         holder.subtitleView.text = currentItem.subtext
         holder.pageView.text = currentItem.page.toString()
 
+        val context = holder.itemView.context
+        val defaultCardColor = MaterialColors.getColor(holder.itemView, com.google.android.material.R.attr.colorSurface)
+
         if (position == deleteMode) {
             holder.actionIcon.setImageResource(R.drawable.delete)
             holder.actionIcon.setColorFilter("#D32F2F".toColorInt())
             holder.actionIcon.contentDescription = "Delete bookmark"
-            holder.card.setCardBackgroundColor("#FFEBEE".toColorInt())
+            holder.card.setCardBackgroundColor("#4DD32F2F".toColorInt())
         } else {
             holder.actionIcon.setImageResource(R.drawable.play)
-            holder.actionIcon.setColorFilter(ContextCompat.getColor(holder.itemView.context, R.color.colorAccent))
+            holder.actionIcon.setColorFilter(ContextCompat.getColor(context, R.color.colorAccent))
             holder.actionIcon.contentDescription = "Open bookmark"
-            holder.card.setCardBackgroundColor(Color.WHITE)
+            holder.card.setCardBackgroundColor(defaultCardColor)
         }
 
         holder.itemView.setOnClickListener {
