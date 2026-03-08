@@ -40,6 +40,7 @@ class PageActivity : AppCompatActivity() {
     private lateinit var bookmarkBtn: ImageButton
     private lateinit var darkModeBtn: ImageButton
     private lateinit var juzProgress: ProgressBar
+    private lateinit var adapter: PageAdapter
     private val hideHandler = Handler(Looper.getMainLooper())
     private var iconsVisible = true
     private val hideIconsRunnable = Runnable { fadeOutIcons() }
@@ -71,6 +72,7 @@ class PageActivity : AppCompatActivity() {
         scheduleHideIcons()
 
         darkModeBtn.setOnClickListener {
+            adapter.saveVisibleScrollPosition(viewPager)
             oldBackgroundColor = resolveBackgroundColor()
             transitioning = true
             val isNight = AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_YES
@@ -114,7 +116,7 @@ class PageActivity : AppCompatActivity() {
         }
 
         val dbHelper = DatabaseHelper(this)
-        val adapter = PageAdapter(list, dbHelper)
+        adapter = PageAdapter(list, dbHelper)
 
         viewPager.alpha = 0f
         viewPager.adapter = adapter
@@ -270,9 +272,14 @@ class PageActivity : AppCompatActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-
+        adapter.saveVisibleScrollPosition(viewPager)
         if(pageNum != null)
             outState.putInt("rotatePageNum", viewPager.currentItem+1)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (isFinishing) PageAdapter.clearScrollPositions()
     }
 
     private fun playTransitionOverlay() {

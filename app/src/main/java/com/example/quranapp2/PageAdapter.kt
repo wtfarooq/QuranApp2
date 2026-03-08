@@ -7,14 +7,22 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import androidx.viewpager2.widget.ViewPager2
 import com.example.quranapp2.db.DatabaseHelper
 
 class PageAdapter(
     private val pages: Array<Int>,
     private val dbHelper: DatabaseHelper
 ) : RecyclerView.Adapter<PageAdapter.PageViewHolder>(){
+
+    companion object {
+        private val scrollPositions = HashMap<Int, Int>()
+
+        fun clearScrollPositions() { scrollPositions.clear() }
+    }
 
     private val invertColorFilter = ColorMatrixColorFilter(ColorMatrix(floatArrayOf(
         -0.84f, 0f, 0f, 0f, 232f,
@@ -50,6 +58,28 @@ class PageAdapter(
             holder.pageImg.colorFilter = invertColorFilter
         } else {
             holder.pageImg.colorFilter = null
+        }
+
+        (holder.itemView as? ScrollView)?.let { sv ->
+            sv.post { sv.scrollTo(0, scrollPositions[position] ?: 0) }
+        }
+    }
+
+    override fun onViewDetachedFromWindow(holder: PageViewHolder) {
+        super.onViewDetachedFromWindow(holder)
+        val pos = holder.bindingAdapterPosition
+        if (pos != RecyclerView.NO_POSITION) {
+            (holder.itemView as? ScrollView)?.let {
+                scrollPositions[pos] = it.scrollY
+            }
+        }
+    }
+
+    fun saveVisibleScrollPosition(viewPager: ViewPager2) {
+        val rv = viewPager.getChildAt(0) as? RecyclerView ?: return
+        val pos = viewPager.currentItem
+        (rv.findViewHolderForAdapterPosition(pos)?.itemView as? ScrollView)?.let {
+            scrollPositions[pos] = it.scrollY
         }
     }
 
