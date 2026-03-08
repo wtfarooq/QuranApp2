@@ -11,31 +11,41 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     companion object {
         private const val DATABASE_NAME = "quran.db"
-        private const val DATABASE_VERSION = 3
+        private const val DATABASE_VERSION = 4
 
         private const val TABLE_JUZ = "juz"
         private const val TABLE_SURAH = "surah"
+        private const val TABLE_PAGE_TIMING = "page_timing"
+        private const val TABLE_JUZ_COMPLETIONS = "juz_completions"
 
         private const val COL_ID = "id"
         private const val COL_NAME = "name"
         private const val COL_DESCRIPTION = "description"
         private const val COL_PAGE_NUMBER = "page_number"
+        private const val COL_PAGE = "page"
+        private const val COL_ACTIVE_MS = "active_ms"
+        private const val COL_JUZ = "juz"
+        private const val COL_COMPLETED_AT = "completed_at"
+        private const val COL_TOTAL_MS = "total_ms"
+        private const val COL_PAGE_COUNT = "page_count"
+
+        private const val MIN_READ_TIME_MS = 20_000L
+
+        fun juzForPage(page: Int): Int {
+            if (page <= 21) return 1
+            return minOf(((page - 2) / 20) + 1, 30)
+        }
+
+        fun juzStartPage(juz: Int): Int = if (juz <= 1) 1 else (juz - 1) * 20 + 2
+
+        fun juzEndPage(juz: Int): Int = if (juz >= 30) 604 else juzStartPage(juz + 1) - 1
     }
 
     override fun onCreate(db: SQLiteDatabase) {
-        val createJuzTable = "CREATE TABLE $TABLE_JUZ (" +
-                "$COL_ID INTEGER PRIMARY KEY," +
-                "$COL_NAME TEXT," +
-                "$COL_DESCRIPTION TEXT," +
-                "$COL_PAGE_NUMBER INTEGER)"
-        db.execSQL(createJuzTable)
-
-        val createSurahTable = "CREATE TABLE $TABLE_SURAH (" +
-                "$COL_ID INTEGER PRIMARY KEY," +
-                "$COL_NAME TEXT," +
-                "$COL_DESCRIPTION TEXT," +
-                "$COL_PAGE_NUMBER INTEGER)"
-        db.execSQL(createSurahTable)
+        db.execSQL("CREATE TABLE $TABLE_JUZ ($COL_ID INTEGER PRIMARY KEY, $COL_NAME TEXT, $COL_DESCRIPTION TEXT, $COL_PAGE_NUMBER INTEGER)")
+        db.execSQL("CREATE TABLE $TABLE_SURAH ($COL_ID INTEGER PRIMARY KEY, $COL_NAME TEXT, $COL_DESCRIPTION TEXT, $COL_PAGE_NUMBER INTEGER)")
+        db.execSQL("CREATE TABLE $TABLE_PAGE_TIMING ($COL_PAGE INTEGER PRIMARY KEY, $COL_ACTIVE_MS INTEGER DEFAULT 0)")
+        db.execSQL("CREATE TABLE $TABLE_JUZ_COMPLETIONS ($COL_JUZ INTEGER PRIMARY KEY, $COL_COMPLETED_AT INTEGER NOT NULL, $COL_TOTAL_MS INTEGER NOT NULL, $COL_PAGE_COUNT INTEGER NOT NULL)")
 
         populateJuzTable(db)
         populateSurahTable(db)
@@ -44,7 +54,15 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         db.execSQL("DROP TABLE IF EXISTS $TABLE_JUZ")
         db.execSQL("DROP TABLE IF EXISTS $TABLE_SURAH")
-        onCreate(db)
+        db.execSQL("CREATE TABLE $TABLE_JUZ ($COL_ID INTEGER PRIMARY KEY, $COL_NAME TEXT, $COL_DESCRIPTION TEXT, $COL_PAGE_NUMBER INTEGER)")
+        db.execSQL("CREATE TABLE $TABLE_SURAH ($COL_ID INTEGER PRIMARY KEY, $COL_NAME TEXT, $COL_DESCRIPTION TEXT, $COL_PAGE_NUMBER INTEGER)")
+        populateJuzTable(db)
+        populateSurahTable(db)
+
+        if (oldVersion < 4) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS $TABLE_PAGE_TIMING ($COL_PAGE INTEGER PRIMARY KEY, $COL_ACTIVE_MS INTEGER DEFAULT 0)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS $TABLE_JUZ_COMPLETIONS ($COL_JUZ INTEGER PRIMARY KEY, $COL_COMPLETED_AT INTEGER NOT NULL, $COL_TOTAL_MS INTEGER NOT NULL, $COL_PAGE_COUNT INTEGER NOT NULL)")
+        }
     }
 
     private fun populateJuzTable(db: SQLiteDatabase) {
@@ -99,7 +117,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             "Surah Al-Kahf, Ayah 75",
             "Surah Al-Anbiyaa, Ayah 1",
             "Surah Al-Muminum, Ayah 1",
-            "Surah Al-Furqan, Ayah21",
+            "Surah Al-Furqan, Ayah 21",
             "Surah An-Naml, Ayah 56",
             "Surah Al-Ankabut, Ayah 46",
             "Surah Al-Azhab, Ayah 31",
@@ -656,5 +674,113 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         val name = if (cursor.moveToFirst()) "Juz ${cursor.getInt(0)} - ${cursor.getString(1)}" else ""
         cursor.close()
         return name
+    }
+
+    fun addPageTime(page: Int, elapsedMs: Long) {
+        val db = this.writableDatabase
+        db.execSQL(
+            "INSERT OR IGNORE INTO $TABLE_PAGE_TIMING ($COL_PAGE, $COL_ACTIVE_MS) VALUES (?, 0)",
+            arrayOf<Any>(page)
+        )
+        db.execSQL(
+            "UPDATE $TABLE_PAGE_TIMING SET $COL_ACTIVE_MS = $COL_ACTIVE_MS + ? WHERE $COL_PAGE = ?",
+            arrayOf<Any>(elapsedMs, page)
+        )
+    }
+
+    fun allPagesReadInJuz(juz: Int): Boolean {
+        val startPage = juzStartPage(juz)
+        val endPage = juzEndPage(juz)
+        val totalPages = endPage - startPage + 1
+
+        val db = this.readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT COUNT(*) FROM $TABLE_PAGE_TIMING WHERE $COL_PAGE BETWEEN ? AND ? AND " +
+                "(($COL_PAGE <= 2 AND $COL_ACTIVE_MS > 0) OR ($COL_PAGE > 2 AND $COL_ACTIVE_MS >= ?))",
+            arrayOf(startPage.toString(), endPage.toString(), MIN_READ_TIME_MS.toString())
+        )
+        val count = if (cursor.moveToFirst()) cursor.getInt(0) else 0
+        cursor.close()
+        return count >= totalPages
+    }
+
+    fun getJuzTimingStats(juz: Int): Pair<Long, Int>? {
+        val startPage = juzStartPage(juz)
+        val endPage = juzEndPage(juz)
+
+        val db = this.readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT SUM($COL_ACTIVE_MS), COUNT(*) FROM $TABLE_PAGE_TIMING " +
+                "WHERE $COL_PAGE BETWEEN ? AND ? AND $COL_ACTIVE_MS > 0",
+            arrayOf(startPage.toString(), endPage.toString())
+        )
+        val result = if (cursor.moveToFirst() && cursor.getInt(1) > 0) {
+            Pair(cursor.getLong(0), cursor.getInt(1))
+        } else null
+        cursor.close()
+        return result
+    }
+
+    fun recordJuzCompletion(juz: Int, totalMs: Long, pageCount: Int) {
+        val db = this.writableDatabase
+        val values = ContentValues().apply {
+            put(COL_JUZ, juz)
+            put(COL_COMPLETED_AT, System.currentTimeMillis())
+            put(COL_TOTAL_MS, totalMs)
+            put(COL_PAGE_COUNT, pageCount)
+        }
+        db.insertWithOnConflict(TABLE_JUZ_COMPLETIONS, null, values, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    fun getOverallAvgJuzTime(excludeJuz: Int): Long? {
+        val db = this.readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT AVG($COL_TOTAL_MS) FROM $TABLE_JUZ_COMPLETIONS WHERE $COL_JUZ != ?",
+            arrayOf(excludeJuz.toString())
+        )
+        val avg = if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else null
+        cursor.close()
+        return avg
+    }
+
+    fun clearPageTimingForJuz(juz: Int) {
+        val startPage = juzStartPage(juz)
+        val endPage = juzEndPage(juz)
+        this.writableDatabase.delete(
+            TABLE_PAGE_TIMING,
+            "$COL_PAGE BETWEEN ? AND ?",
+            arrayOf(startPage.toString(), endPage.toString())
+        )
+    }
+
+    fun getJuzNameByNumber(juz: Int): String {
+        val db = this.readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT $COL_NAME FROM $TABLE_JUZ WHERE $COL_ID = ?",
+            arrayOf(juz.toString())
+        )
+        val name = if (cursor.moveToFirst()) cursor.getString(0) else ""
+        cursor.close()
+        return name
+    }
+
+    fun getFastestJuzTime(): Long? {
+        val db = this.readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT MIN($COL_TOTAL_MS) FROM $TABLE_JUZ_COMPLETIONS", null
+        )
+        val min = if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else null
+        cursor.close()
+        return min
+    }
+
+    fun getCompletedJuzCount(): Int {
+        val db = this.readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT COUNT(*) FROM $TABLE_JUZ_COMPLETIONS", null
+        )
+        val count = if (cursor.moveToFirst()) cursor.getInt(0) else 0
+        cursor.close()
+        return count
     }
 }

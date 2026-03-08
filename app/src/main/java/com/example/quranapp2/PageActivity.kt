@@ -5,6 +5,7 @@ import android.animation.AnimatorListenerAdapter
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
@@ -41,10 +42,16 @@ class PageActivity : AppCompatActivity() {
     private lateinit var darkModeBtn: ImageButton
     private lateinit var juzProgress: ProgressBar
     private lateinit var adapter: PageAdapter
+    private lateinit var dbHelper: DatabaseHelper
     private val hideHandler = Handler(Looper.getMainLooper())
     private var iconsVisible = true
     private val hideIconsRunnable = Runnable { fadeOutIcons() }
     private lateinit var insetsController: WindowInsetsControllerCompat
+
+    private var timedPage: Int = -1
+    private var pageStartRealtime: Long = 0L
+    private var previousPage: Int = -1
+    private lateinit var juzProgressValues: FloatArray
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val mode = getSharedPreferences("settings", MODE_PRIVATE)
@@ -115,20 +122,11 @@ class PageActivity : AppCompatActivity() {
             insets
         }
 
-        val dbHelper = DatabaseHelper(this)
+        dbHelper = DatabaseHelper(this)
         adapter = PageAdapter(list, dbHelper)
 
-        viewPager.alpha = 0f
-        viewPager.adapter = adapter
-        viewPager.setCurrentItem(pageNum!! - 1, false)
-        viewPager.post {
-            viewPager.animate().alpha(1f).setDuration(250).start()
-        }
-
-        updateBookmarkIcon(currentPage())
-
         val juzStarts = IntArray(31) { i -> if (i <= 1) 1 else (i - 1) * 20 + 2 }
-        val juzProgressValues = FloatArray(605)
+        juzProgressValues = FloatArray(605)
         for (p in 1..604) {
             val juz = juzStarts.indexOfLast { it <= p }
             val startPage = juzStarts[juz]
@@ -140,13 +138,26 @@ class PageActivity : AppCompatActivity() {
         }
 
         juzProgress.max = 1000
-        juzProgress.progress = juzProgressValues[currentPage()].toInt()
 
         viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
-                updateBookmarkIcon(position + 1)
-                saveLastPage(position + 1)
-                juzProgress.progress = juzProgressValues[position + 1].toInt()
+                val page = position + 1
+
+                flushPageTimer()
+                startPageTimer(page)
+
+                updateBookmarkIcon(page)
+                saveLastPage(page)
+                juzProgress.progress = juzProgressValues[page].toInt()
+
+                if (previousPage > 0) {
+                    val prevJuz = DatabaseHelper.juzForPage(previousPage)
+                    val currJuz = DatabaseHelper.juzForPage(page)
+                    if (currJuz > prevJuz) {
+                        checkAndShowJuzCompletion(prevJuz)
+                    }
+                }
+                previousPage = page
             }
 
             override fun onPageScrolled(position: Int, positionOffset: Float, positionOffsetPixels: Int) {
@@ -158,6 +169,16 @@ class PageActivity : AppCompatActivity() {
             }
         })
 
+        viewPager.alpha = 0f
+        viewPager.adapter = adapter
+        viewPager.setCurrentItem(pageNum!! - 1, false)
+        previousPage = pageNum!!
+        viewPager.post {
+            viewPager.animate().alpha(1f).setDuration(250).start()
+        }
+
+        updateBookmarkIcon(currentPage())
+        juzProgress.progress = juzProgressValues[currentPage()].toInt()
         saveLastPage(currentPage())
 
         bookmarkBtn.setOnClickListener {
@@ -168,6 +189,76 @@ class PageActivity : AppCompatActivity() {
             }
             toggleBookmark(currentPage())
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        startPageTimer(currentPage())
+    }
+
+    override fun onPause() {
+        super.onPause()
+        flushPageTimer()
+    }
+
+    private fun startPageTimer(page: Int) {
+        timedPage = page
+        pageStartRealtime = SystemClock.elapsedRealtime()
+    }
+
+    private fun flushPageTimer() {
+        if (timedPage > 0 && pageStartRealtime > 0) {
+            val elapsed = SystemClock.elapsedRealtime() - pageStartRealtime
+            if (elapsed > 0) {
+                dbHelper.addPageTime(timedPage, elapsed)
+            }
+        }
+        pageStartRealtime = 0L
+    }
+
+    private fun checkAndShowJuzCompletion(completedJuz: Int) {
+        if (completedJuz >= 30) return
+        if (!dbHelper.allPagesReadInJuz(completedJuz)) return
+
+        val (totalMs, pageCount) = dbHelper.getJuzTimingStats(completedJuz) ?: return
+
+        // Gather comparison data (before recording)
+        val overallAvg = dbHelper.getOverallAvgJuzTime(completedJuz)
+        val comparisonPercent = if (overallAvg != null && overallAvg > 0) {
+            ((overallAvg - totalMs).toFloat() / overallAvg * 100f)
+        } else null
+
+        // Check personal best (before recording)
+        val fastestSoFar = dbHelper.getFastestJuzTime()
+        val isPersonalBest = fastestSoFar == null || totalMs <= fastestSoFar
+
+        // Record and clear
+        dbHelper.recordJuzCompletion(completedJuz, totalMs, pageCount)
+        dbHelper.clearPageTimingForJuz(completedJuz)
+
+        // Gather remaining data (after recording so count includes current)
+        val completedJuzCount = dbHelper.getCompletedJuzCount()
+        val nextJuzName = dbHelper.getJuzNameByNumber(completedJuz + 1)
+
+        // Next Juz surah preview
+        val nextJuzStartPage = DatabaseHelper.juzStartPage(completedJuz + 1)
+        val currentJuzEndPage = DatabaseHelper.juzEndPage(completedJuz)
+        val nextSurahRaw = dbHelper.getSurahForPage(nextJuzStartPage)
+        val endSurahRaw = dbHelper.getSurahForPage(currentJuzEndPage)
+        val nextSurahName = nextSurahRaw.substringBefore(" (")
+        val nextSurahContinues = nextSurahRaw == endSurahRaw
+
+        JuzCompletionDialogFragment.newInstance(
+            juz = completedJuz,
+            totalMs = totalMs,
+            pageCount = pageCount,
+            comparisonPercent = comparisonPercent,
+            nextJuzName = nextJuzName,
+            isPersonalBest = isPersonalBest,
+            completedJuzCount = completedJuzCount,
+            nextSurahName = nextSurahName,
+            nextSurahContinues = nextSurahContinues
+        ).show(supportFragmentManager, "juz_completion")
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {

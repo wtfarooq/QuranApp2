@@ -13,4 +13,7 @@
     <color name="colorAccent">#F9BE58</color>
     <color name="iconTint">#212121</color>
     <color name="juzProgressTint">@color/colorAccent</color>
+    <color name="cardStroke">#E0E0E0</color>
+    <color name="comparisonBannerBg">#F9BE58</color>
+    <color name="comparisonBannerText">#FFFFFF</color>
 </resources>
