@@ -25,8 +25,7 @@ class JuzCompletionDialogFragment : DialogFragment() {
         private const val ARG_NEXT_JUZ_NAME = "next_juz_name"
         private const val ARG_IS_PERSONAL_BEST = "is_personal_best"
         private const val ARG_COMPLETED_JUZ_COUNT = "completed_juz_count"
-        private const val ARG_NEXT_SURAH_NAME = "next_surah_name"
-        private const val ARG_NEXT_SURAH_CONTINUES = "next_surah_continues"
+        private const val ARG_NEXT_JUZ_DESCRIPTION = "next_juz_description"
 
         fun newInstance(
             juz: Int,
@@ -36,8 +35,7 @@ class JuzCompletionDialogFragment : DialogFragment() {
             nextJuzName: String,
             isPersonalBest: Boolean,
             completedJuzCount: Int,
-            nextSurahName: String,
-            nextSurahContinues: Boolean
+            nextJuzDescription: String
         ): JuzCompletionDialogFragment {
             return JuzCompletionDialogFragment().apply {
                 arguments = Bundle().apply {
@@ -49,8 +47,7 @@ class JuzCompletionDialogFragment : DialogFragment() {
                     putString(ARG_NEXT_JUZ_NAME, nextJuzName)
                     putBoolean(ARG_IS_PERSONAL_BEST, isPersonalBest)
                     putInt(ARG_COMPLETED_JUZ_COUNT, completedJuzCount)
-                    putString(ARG_NEXT_SURAH_NAME, nextSurahName)
-                    putBoolean(ARG_NEXT_SURAH_CONTINUES, nextSurahContinues)
+                    putString(ARG_NEXT_JUZ_DESCRIPTION, nextJuzDescription)
                 }
             }
         }
@@ -129,8 +126,7 @@ class JuzCompletionDialogFragment : DialogFragment() {
         val nextJuzName = args.getString(ARG_NEXT_JUZ_NAME, "")
         val isPersonalBest = args.getBoolean(ARG_IS_PERSONAL_BEST)
         val completedJuzCount = args.getInt(ARG_COMPLETED_JUZ_COUNT)
-        val nextSurahName = args.getString(ARG_NEXT_SURAH_NAME, "")
-        val nextSurahContinues = args.getBoolean(ARG_NEXT_SURAH_CONTINUES)
+        val nextJuzDescription = args.getString(ARG_NEXT_JUZ_DESCRIPTION, "")
 
         // Personal best badge + glow
         if (isPersonalBest) {
@@ -177,14 +173,9 @@ class JuzCompletionDialogFragment : DialogFragment() {
 
         // Next Juz preview
         val previewCard = view.findViewById<MaterialCardView>(R.id.nextJuzPreviewCard)
-        if (juz < 30 && nextSurahName.isNotEmpty()) {
+        if (juz < 30 && nextJuzDescription.isNotEmpty()) {
             previewCard.visibility = View.VISIBLE
-            val surahText = if (nextSurahContinues) {
-                getString(R.string.surah_continues, nextSurahName)
-            } else {
-                getString(R.string.starting_with_surah, nextSurahName)
-            }
-            view.findViewById<TextView>(R.id.nextUpSurahText).text = surahText
+            view.findViewById<TextView>(R.id.nextUpSurahText).text = nextJuzDescription
             previewCard.setOnClickListener { dismiss() }
         } else {
             previewCard.visibility = View.GONE

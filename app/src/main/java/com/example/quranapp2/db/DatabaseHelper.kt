@@ -764,6 +764,17 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return name
     }
 
+    fun getJuzDescriptionByNumber(juz: Int): String {
+        val db = this.readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT $COL_DESCRIPTION FROM $TABLE_JUZ WHERE $COL_ID = ?",
+            arrayOf(juz.toString())
+        )
+        val desc = if (cursor.moveToFirst()) cursor.getString(0) else ""
+        cursor.close()
+        return desc
+    }
+
     fun getFastestJuzTime(): Long? {
         val db = this.readableDatabase
         val cursor = db.rawQuery(
