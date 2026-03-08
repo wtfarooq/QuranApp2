@@ -9,8 +9,12 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.example.quranapp2.db.DatabaseHelper
 
-class PageAdapter(private val pages: Array<Int>) : RecyclerView.Adapter<PageAdapter.PageViewHolder>(){
+class PageAdapter(
+    private val pages: Array<Int>,
+    private val dbHelper: DatabaseHelper
+) : RecyclerView.Adapter<PageAdapter.PageViewHolder>(){
 
     private val invertColorFilter = ColorMatrixColorFilter(ColorMatrix(floatArrayOf(
         -0.84f, 0f, 0f, 0f, 232f,
@@ -22,6 +26,8 @@ class PageAdapter(private val pages: Array<Int>) : RecyclerView.Adapter<PageAdap
     class PageViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val pageImg: ImageView = itemView.findViewById(R.id.pageImg)
         val pageNumber: TextView = itemView.findViewById(R.id.pageNum)
+        val surahName: TextView = itemView.findViewById(R.id.surahName)
+        val juzName: TextView = itemView.findViewById(R.id.juzName)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PageViewHolder {
@@ -31,8 +37,12 @@ class PageAdapter(private val pages: Array<Int>) : RecyclerView.Adapter<PageAdap
 
     override fun onBindViewHolder(holder: PageViewHolder, position: Int) {
         val currentItem = pages[position]
+        val page = position + 1
+
         holder.pageImg.setImageResource(currentItem)
-        holder.pageNumber.text = (position+1).toString()
+        holder.pageNumber.text = page.toString()
+        holder.surahName.text = dbHelper.getSurahForPage(page).substringBefore(" (")
+        holder.juzName.text = dbHelper.getJuzForPage(page).substringBefore(" -")
 
         val nightMode = holder.itemView.context.resources.configuration.uiMode and
                 Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES

@@ -34,4 +34,16 @@
         android:tint="@color/iconTint"
         android:padding="8dp" />
 
+    <ProgressBar
+        android:id="@+id/juzProgress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:layout_gravity="bottom"
+        android:layoutDirection="rtl"
+        android:max="1000"
+        android:progress="0"
+        android:progressTint="@color/juzProgressTint"
+        android:progressBackgroundTint="@android:color/transparent" />
+
 </FrameLayout>

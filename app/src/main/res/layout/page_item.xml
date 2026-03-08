@@ -12,14 +12,51 @@
         android:layout_height="match_parent"
         android:contentDescription="@string/quran_page"
         tools:src="@drawable/q604" />
-    <TextView
-        android:id="@+id/pageNum"
-        android:layout_width="wrap_content"
+
+    <LinearLayout
+        android:id="@+id/bottomBar"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="12sp"
-        android:textColor="@color/iconTint"
         android:layout_alignParentBottom="true"
-        android:layout_centerHorizontal="true"
-        tools:text="604" />
+        android:layoutDirection="ltr"
+        android:orientation="horizontal"
+        android:paddingHorizontal="8dp"
+        android:paddingBottom="4dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/surahName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="11sp"
+            android:textColor="@color/iconTint"
+            android:gravity="start"
+            android:ellipsize="end"
+            android:maxLines="1"
+            tools:text="Al-Fatihah" />
+
+        <TextView
+            android:id="@+id/pageNum"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textColor="@color/iconTint"
+            android:paddingHorizontal="8dp"
+            tools:text="604" />
+
+        <TextView
+            android:id="@+id/juzName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="11sp"
+            android:textColor="@color/iconTint"
+            android:gravity="end"
+            android:ellipsize="end"
+            android:maxLines="1"
+            tools:text="Juz 1" />
+
+    </LinearLayout>
 
 </RelativeLayout>

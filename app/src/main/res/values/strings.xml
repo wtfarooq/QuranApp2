@@ -8,4 +8,5 @@
     <string name="bookmark">Bookmark</string>
     <string name="toggle_dark_mode">Toggle dark mode</string>
     <string name="quran_page">quran page</string>
+    <string name="play_icon">play icon</string>
 </resources>

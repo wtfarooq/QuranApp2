@@ -12,4 +12,5 @@
     <color name="colorPrimaryDark">#EFEFEF</color>
     <color name="colorAccent">#F9BE58</color>
     <color name="iconTint">#212121</color>
+    <color name="juzProgressTint">@color/colorAccent</color>
 </resources>
