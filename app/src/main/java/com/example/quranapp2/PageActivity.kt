@@ -11,11 +11,16 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.OvershootInterpolator
+import android.widget.FrameLayout
 import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import android.widget.ProgressBar
 import androidx.viewpager2.widget.ViewPager2
 import com.example.quranapp2.db.DatabaseHelper
@@ -38,14 +43,26 @@ class PageActivity : AppCompatActivity() {
     private val hideHandler = Handler(Looper.getMainLooper())
     private var iconsVisible = true
     private val hideIconsRunnable = Runnable { fadeOutIcons() }
+    private lateinit var insetsController: WindowInsetsControllerCompat
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val mode = getSharedPreferences("settings", MODE_PRIVATE)
             .getInt("nightMode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
         AppCompatDelegate.setDefaultNightMode(mode)
         super.onCreate(savedInstanceState)
-        overridePendingTransition(0, 0)
+        if (android.os.Build.VERSION.SDK_INT >= 34) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+        }
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_page)
+
+        insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        insetsController.hide(WindowInsetsCompat.Type.systemBars())
 
         darkModeBtn = findViewById(R.id.darkModeBtn)
         updateDarkModeIcon(darkModeBtn)
@@ -66,6 +83,7 @@ class PageActivity : AppCompatActivity() {
             pageNum = intent.getIntExtra("pageNum", 0)
         else
             pageNum = savedInstanceState.getInt("rotatePageNum")
+        @Suppress("DiscouragedApi")
         val list = Array(604) { i ->
             resources.getIdentifier("q${i + 1}", "drawable", packageName)
         }
@@ -73,6 +91,28 @@ class PageActivity : AppCompatActivity() {
         viewPager = findViewById(R.id.pageViewPager2)
         bookmarkBtn = findViewById(R.id.bookmarkBtn)
         juzProgress = findViewById(R.id.juzProgress)
+
+        val dp8 = (8 * resources.displayMetrics.density).toInt()
+        ViewCompat.setOnApplyWindowInsetsListener(viewPager) { v, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(0, 0, 0, bars.bottom)
+            (bookmarkBtn.layoutParams as FrameLayout.LayoutParams).apply {
+                topMargin = bars.top + dp8
+                marginStart = bars.left + dp8
+            }
+            (darkModeBtn.layoutParams as FrameLayout.LayoutParams).apply {
+                topMargin = bars.top + dp8
+                marginEnd = bars.right + dp8
+            }
+            (juzProgress.layoutParams as FrameLayout.LayoutParams).apply {
+                bottomMargin = bars.bottom
+            }
+            bookmarkBtn.requestLayout()
+            darkModeBtn.requestLayout()
+            juzProgress.requestLayout()
+            insets
+        }
+
         val dbHelper = DatabaseHelper(this)
         val adapter = PageAdapter(list, dbHelper)
 

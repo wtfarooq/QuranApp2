@@ -14,6 +14,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import android.os.Bundle
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
@@ -33,7 +36,13 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         applySavedNightMode()
         super.onCreate(savedInstanceState)
-        overridePendingTransition(0, 0)
+        if (android.os.Build.VERSION.SDK_INT >= 34) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+        }
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)
 
         val isDarkModeTransition = transitioning
@@ -48,7 +57,13 @@ class MainActivity : AppCompatActivity() {
         val collapsingToolbar: CollapsingToolbarLayout = findViewById(R.id.collapsingToolbar)
         val toolbar: androidx.appcompat.widget.Toolbar? = findViewById(R.id.toolbar)
 
-        appBarLayout.addOnOffsetChangedListener(AppBarLayout.OnOffsetChangedListener { appBar, verticalOffset ->
+        ViewCompat.setOnApplyWindowInsetsListener(appBarLayout) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.setPadding(bars.left, bars.top, bars.right, 0)
+            insets
+        }
+
+        appBarLayout.addOnOffsetChangedListener { appBar, verticalOffset ->
             currentAppBarOffset = verticalOffset
             if (toolbar != null) {
                 val totalRange = appBar.totalScrollRange.toFloat()
@@ -58,7 +73,7 @@ class MainActivity : AppCompatActivity() {
                     darkModeBtn.translationY = maxTranslation * expandRatio
                 }
             }
-        })
+        }
 
         darkModeBtn.setOnClickListener {
             oldBackgroundColor = resolveBackgroundColor()
@@ -176,7 +191,7 @@ class MainActivity : AppCompatActivity() {
         val lastPage = getSharedPreferences("reading", MODE_PRIVATE).getInt("lastPage", 0)
 
         if (lastPage > 0) {
-            text.text = "Continue · Page $lastPage"
+            text.text = getString(R.string.continue_reading, lastPage)
             card.visibility = View.VISIBLE
             card.setOnClickListener {
                 val intent = Intent(this, PageActivity::class.java)

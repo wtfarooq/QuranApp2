@@ -8,6 +8,9 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.quranapp2.db.DatabaseHelper
@@ -32,6 +35,16 @@ class SurahJuzFragment : Fragment(), SurahJuzAdapter.OnItemClickListener, Bookma
         recyclerView = view.findViewById(R.id.recyclerView)
         recyclerView?.layoutManager = LinearLayoutManager(context)
         recyclerView?.setHasFixedSize(true)
+
+        recyclerView?.let { rv ->
+            val basePadding = rv.paddingBottom
+            ViewCompat.setOnApplyWindowInsetsListener(rv) { v, insets ->
+                val navBar = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+                v.updatePadding(bottom = basePadding + navBar.bottom)
+                insets
+            }
+        }
+
         val position = arguments?.getInt("position")
         val dbHelper = context?.let { DatabaseHelper(it) }
         when (position) {

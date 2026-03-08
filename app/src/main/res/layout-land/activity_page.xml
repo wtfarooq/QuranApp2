@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -32,14 +33,14 @@
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/toggle_dark_mode"
         android:src="@drawable/ic_dark_mode"
-        android:tint="@color/iconTint"
-        android:padding="8dp" />
+        android:padding="8dp"
+        app:tint="@color/iconTint" />
 
     <ProgressBar
         android:id="@+id/juzProgress"
         style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent"
-        android:layout_height="2dp"
+        android:layout_height="4dp"
         android:layout_gravity="bottom"
         android:layoutDirection="rtl"
         android:max="1000"
