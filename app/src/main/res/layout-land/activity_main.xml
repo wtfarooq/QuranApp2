@@ -60,6 +60,7 @@
                         <ImageView
                             android:layout_width="16dp"
                             android:layout_height="16dp"
+                            android:contentDescription="@string/play_icon"
                             android:src="@drawable/play"
                             app:tint="@color/colorAccent" />
 
@@ -68,7 +69,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
-                            android:textColor="?android:attr/textColorPrimary"
+                            android:textColor="@color/iconTint"
                             android:textSize="13sp" />
 
                     </LinearLayout>
@@ -82,7 +83,7 @@
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/toggle_dark_mode"
                     android:src="@drawable/ic_dark_mode"
-                    android:tint="?android:attr/textColorPrimary"
+                    android:tint="?android:attr/textColorSecondary"
                     android:padding="8dp" />
 
             </LinearLayout>

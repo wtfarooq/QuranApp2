@@ -19,7 +19,8 @@
         android:layout_margin="8dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/bookmark"
-        android:src="@drawable/bookmark" />
+        android:src="@drawable/bookmark"
+        android:padding="8dp" />
 
     <ImageButton
         android:id="@+id/darkModeBtn"
@@ -30,7 +31,7 @@
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/toggle_dark_mode"
         android:src="@drawable/ic_dark_mode"
-        android:tint="?android:attr/textColorPrimary"
-        android:padding="12dp" />
+        android:tint="@color/iconTint"
+        android:padding="8dp" />
 
 </FrameLayout>

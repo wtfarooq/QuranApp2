@@ -13,7 +13,7 @@ class BurstView(context: Context) : View(context) {
     private val lineCount = 8
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = ContextCompat.getColor(context, R.color.colorAccent)
-        strokeWidth = 3f
+        strokeWidth = 6f
         strokeCap = Paint.Cap.ROUND
     }
 

@@ -3,7 +3,10 @@ package com.example.quranapp2
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.TypedValue
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateDecelerateInterpolator
@@ -20,11 +23,17 @@ class PageActivity : AppCompatActivity() {
     companion object {
         var oldBackgroundColor: Int? = null
         var transitioning = false
+        private const val ICON_HIDE_DELAY = 4000L
+        private const val ICON_FADE_DURATION = 300L
     }
 
     private var pageNum: Int? = null
     private lateinit var viewPager: ViewPager2
     private lateinit var bookmarkBtn: ImageButton
+    private lateinit var darkModeBtn: ImageButton
+    private val hideHandler = Handler(Looper.getMainLooper())
+    private var iconsVisible = true
+    private val hideIconsRunnable = Runnable { fadeOutIcons() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val mode = getSharedPreferences("settings", MODE_PRIVATE)
@@ -34,10 +43,11 @@ class PageActivity : AppCompatActivity() {
         overridePendingTransition(0, 0)
         setContentView(R.layout.activity_page)
 
-        val darkModeBtn: ImageButton = findViewById(R.id.darkModeBtn)
+        darkModeBtn = findViewById(R.id.darkModeBtn)
         updateDarkModeIcon(darkModeBtn)
         playTransitionOverlay()
         playIconSpinAnimation(darkModeBtn)
+        scheduleHideIcons()
 
         darkModeBtn.setOnClickListener {
             oldBackgroundColor = resolveBackgroundColor()
@@ -687,6 +697,34 @@ class PageActivity : AppCompatActivity() {
         }
     }
 
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (ev.action == MotionEvent.ACTION_DOWN) {
+            if (!iconsVisible) {
+                fadeInIcons()
+            }
+            scheduleHideIcons()
+        }
+        return super.dispatchTouchEvent(ev)
+    }
+
+    private fun scheduleHideIcons() {
+        hideHandler.removeCallbacks(hideIconsRunnable)
+        hideHandler.postDelayed(hideIconsRunnable, ICON_HIDE_DELAY)
+    }
+
+    private fun fadeOutIcons() {
+        if (!iconsVisible) return
+        iconsVisible = false
+        bookmarkBtn.animate().alpha(0f).setDuration(ICON_FADE_DURATION).start()
+        darkModeBtn.animate().alpha(0f).setDuration(ICON_FADE_DURATION).start()
+    }
+
+    private fun fadeInIcons() {
+        iconsVisible = true
+        bookmarkBtn.animate().alpha(1f).setDuration(ICON_FADE_DURATION).start()
+        darkModeBtn.animate().alpha(1f).setDuration(ICON_FADE_DURATION).start()
+    }
+
     private fun currentPage(): Int = viewPager.currentItem + 1
 
     private fun saveLastPage(page: Int) {
@@ -709,9 +747,9 @@ class PageActivity : AppCompatActivity() {
 
     private fun playBookmarkAnimation() {
         bookmarkBtn.animate()
-            .scaleX(1.4f).scaleY(1.4f)
-            .setDuration(200)
-            .setInterpolator(OvershootInterpolator(3f))
+            .scaleX(1.1f).scaleY(1.1f)
+            .setDuration(150)
+            .setInterpolator(OvershootInterpolator(2f))
             .withEndAction {
                 bookmarkBtn.animate()
                     .scaleX(1f).scaleY(1f)
@@ -740,7 +778,7 @@ class PageActivity : AppCompatActivity() {
             bookmarkBtn.setColorFilter(ContextCompat.getColor(this, R.color.colorAccent))
         } else {
             bookmarkBtn.setImageResource(R.drawable.bookmark)
-            bookmarkBtn.setColorFilter(ContextCompat.getColor(this, android.R.color.darker_gray))
+            bookmarkBtn.setColorFilter(ContextCompat.getColor(this, R.color.iconTint))
         }
     }
 
@@ -778,11 +816,17 @@ class PageActivity : AppCompatActivity() {
     private fun playIconSpinAnimation(btn: ImageButton) {
         if (!transitioning) return
         transitioning = false
+        val isNight = AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_YES
+        val direction = if (isNight) 360f else -360f
         btn.rotation = 0f
+        btn.scaleX = 0f
+        btn.scaleY = 0f
         btn.animate()
-            .rotationBy(360f)
-            .setDuration(300)
-            .setInterpolator(AccelerateDecelerateInterpolator())
+            .rotationBy(direction)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(400)
+            .setInterpolator(OvershootInterpolator(1.5f))
             .start()
     }
 

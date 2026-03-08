@@ -7,6 +7,7 @@ import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.OvershootInterpolator
 import android.widget.ImageButton
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -15,6 +16,7 @@ import android.os.Bundle
 import androidx.core.content.ContextCompat
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.appbar.AppBarLayout
+import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import androidx.core.content.edit
@@ -43,9 +45,19 @@ class MainActivity : AppCompatActivity() {
         playIconSpinAnimation(darkModeBtn)
 
         val appBarLayout: AppBarLayout = findViewById(R.id.appBarLayout)
+        val collapsingToolbar: CollapsingToolbarLayout = findViewById(R.id.collapsingToolbar)
+        val toolbar: androidx.appcompat.widget.Toolbar? = findViewById(R.id.toolbar)
 
-        appBarLayout.addOnOffsetChangedListener(AppBarLayout.OnOffsetChangedListener { _, verticalOffset ->
+        appBarLayout.addOnOffsetChangedListener(AppBarLayout.OnOffsetChangedListener { appBar, verticalOffset ->
             currentAppBarOffset = verticalOffset
+            if (toolbar != null) {
+                val totalRange = appBar.totalScrollRange.toFloat()
+                if (totalRange > 0) {
+                    val expandRatio = 1f + verticalOffset / totalRange
+                    val maxTranslation = collapsingToolbar.height - toolbar.height
+                    darkModeBtn.translationY = maxTranslation * expandRatio
+                }
+            }
         })
 
         darkModeBtn.setOnClickListener {
@@ -132,11 +144,17 @@ class MainActivity : AppCompatActivity() {
     private fun playIconSpinAnimation(btn: ImageButton) {
         if (!transitioning) return
         transitioning = false
+        val isNight = AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_YES
+        val direction = if (isNight) 360f else -360f
         btn.rotation = 0f
+        btn.scaleX = 0f
+        btn.scaleY = 0f
         btn.animate()
-            .rotationBy(360f)
-            .setDuration(300)
-            .setInterpolator(AccelerateDecelerateInterpolator())
+            .rotationBy(direction)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(400)
+            .setInterpolator(OvershootInterpolator(1.5f))
             .start()
     }
 
