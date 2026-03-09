@@ -50,7 +50,9 @@ object AppUpdateChecker {
                 }
 
                 activity.runOnUiThread {
-                    showUpdateDialog(activity, apkFile)
+                    if (!activity.isFinishing && !activity.isDestroyed) {
+                        showUpdateDialog(activity, apkFile)
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Update check failed", e)
@@ -123,6 +125,7 @@ object AppUpdateChecker {
     }
 
     private fun showUpdateDialog(activity: Activity, apkFile: File) {
+        if (activity.isFinishing || activity.isDestroyed) return
         val dialog = BottomSheetDialog(activity)
         val root = android.widget.FrameLayout(activity)
         val view = LayoutInflater.from(activity).inflate(R.layout.bottom_sheet_update, root, false)
