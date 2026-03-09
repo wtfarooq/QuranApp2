@@ -6,14 +6,21 @@ android {
     namespace 'com.example.quranapp2'
     compileSdk = 36
 
+    buildFeatures {
+        buildConfig true
+    }
+
     defaultConfig {
         applicationId = "com.example.quranapp2"
         minSdk = 21
         targetSdk = 36
         versionCode 1
-        versionName "1.0"
+        versionName "3.7"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField "String", "GITHUB_OWNER", "\"wtfarooq\""
+        buildConfigField "String", "GITHUB_REPO", "\"QuranApp2\""
     }
 
     buildTypes {

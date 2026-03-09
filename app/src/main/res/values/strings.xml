@@ -27,4 +27,9 @@
     <string name="share_progress">Share Progress</string>
     <string name="share_text">Alhamdulillah! I just completed Juz %d of the Holy Quran.</string>
     <string name="progress_percent">%d%%</string>
+    <string name="new_version_available">New Version Available</string>
+    <string name="update_description">Enjoy new features and performance improvements for a better experience.</string>
+    <string name="update_now">Update Now</string>
+    <string name="maybe_later">Maybe Later</string>
+    <string name="update_icon_desc">Update</string>
 </resources>

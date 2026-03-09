@@ -120,6 +120,8 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
+        AppUpdateChecker.checkForUpdate(this)
     }
 
     override fun onResume() {
