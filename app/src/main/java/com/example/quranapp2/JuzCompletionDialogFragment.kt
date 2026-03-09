@@ -7,7 +7,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
-import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.fragment.app.DialogFragment
 import com.google.android.material.button.MaterialButton
@@ -24,7 +23,6 @@ class JuzCompletionDialogFragment : DialogFragment() {
         private const val ARG_HAS_COMPARISON = "has_comparison"
         private const val ARG_NEXT_JUZ_NAME = "next_juz_name"
         private const val ARG_IS_PERSONAL_BEST = "is_personal_best"
-        private const val ARG_COMPLETED_JUZ_COUNT = "completed_juz_count"
         private const val ARG_NEXT_JUZ_DESCRIPTION = "next_juz_description"
 
         fun newInstance(
@@ -34,7 +32,6 @@ class JuzCompletionDialogFragment : DialogFragment() {
             comparisonPercent: Float?,
             nextJuzName: String,
             isPersonalBest: Boolean,
-            completedJuzCount: Int,
             nextJuzDescription: String
         ): JuzCompletionDialogFragment {
             return JuzCompletionDialogFragment().apply {
@@ -46,7 +43,6 @@ class JuzCompletionDialogFragment : DialogFragment() {
                     putFloat(ARG_COMPARISON_PERCENT, comparisonPercent ?: 0f)
                     putString(ARG_NEXT_JUZ_NAME, nextJuzName)
                     putBoolean(ARG_IS_PERSONAL_BEST, isPersonalBest)
-                    putInt(ARG_COMPLETED_JUZ_COUNT, completedJuzCount)
                     putString(ARG_NEXT_JUZ_DESCRIPTION, nextJuzDescription)
                 }
             }
@@ -125,7 +121,6 @@ class JuzCompletionDialogFragment : DialogFragment() {
         val comparisonPercent = args.getFloat(ARG_COMPARISON_PERCENT)
         val nextJuzName = args.getString(ARG_NEXT_JUZ_NAME, "")
         val isPersonalBest = args.getBoolean(ARG_IS_PERSONAL_BEST)
-        val completedJuzCount = args.getInt(ARG_COMPLETED_JUZ_COUNT)
         val nextJuzDescription = args.getString(ARG_NEXT_JUZ_DESCRIPTION, "")
 
         // Personal best badge + glow
@@ -164,12 +159,6 @@ class JuzCompletionDialogFragment : DialogFragment() {
         } else {
             banner.visibility = View.GONE
         }
-
-        // Overall progress
-        val progressPercent = completedJuzCount * 100 / 30
-        view.findViewById<TextView>(R.id.overallProgressPercent).text =
-            getString(R.string.progress_percent, progressPercent)
-        view.findViewById<ProgressBar>(R.id.overallProgressBar).progress = completedJuzCount
 
         // Next Juz preview
         val previewCard = view.findViewById<MaterialCardView>(R.id.nextJuzPreviewCard)

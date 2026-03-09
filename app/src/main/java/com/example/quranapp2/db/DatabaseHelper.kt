@@ -29,7 +29,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         private const val COL_TOTAL_MS = "total_ms"
         private const val COL_PAGE_COUNT = "page_count"
 
-        private const val MIN_READ_TIME_MS = 20_000L
+        private const val MIN_READ_TIME_MS = 1_000L
 
         fun juzForPage(page: Int): Int {
             if (page <= 21) return 1
@@ -783,15 +783,5 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         val min = if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else null
         cursor.close()
         return min
-    }
-
-    fun getCompletedJuzCount(): Int {
-        val db = this.readableDatabase
-        val cursor = db.rawQuery(
-            "SELECT COUNT(*) FROM $TABLE_JUZ_COMPLETIONS", null
-        )
-        val count = if (cursor.moveToFirst()) cursor.getInt(0) else 0
-        cursor.close()
-        return count
     }
 }

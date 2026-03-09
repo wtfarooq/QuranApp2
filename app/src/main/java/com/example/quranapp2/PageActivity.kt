@@ -236,11 +236,7 @@ class PageActivity : AppCompatActivity() {
         dbHelper.recordJuzCompletion(completedJuz, totalMs, pageCount)
         dbHelper.clearPageTimingForJuz(completedJuz)
 
-        // Gather remaining data (after recording so count includes current)
-        val completedJuzCount = dbHelper.getCompletedJuzCount()
         val nextJuzName = dbHelper.getJuzNameByNumber(completedJuz + 1)
-
-        // Next Juz surah preview (e.g. "Surah Al-Imran, Ayah 93")
         val nextJuzDescription = dbHelper.getJuzDescriptionByNumber(completedJuz + 1)
 
         JuzCompletionDialogFragment.newInstance(
@@ -250,7 +246,6 @@ class PageActivity : AppCompatActivity() {
             comparisonPercent = comparisonPercent,
             nextJuzName = nextJuzName,
             isPersonalBest = isPersonalBest,
-            completedJuzCount = completedJuzCount,
             nextJuzDescription = nextJuzDescription
         ).show(supportFragmentManager, "juz_completion")
     }
