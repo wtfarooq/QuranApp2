@@ -1,5 +1,6 @@
 package com.example.quranapp2
 
+import android.content.DialogInterface
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -195,6 +196,11 @@ class JuzCompletionDialogFragment : DialogFragment() {
             dismiss()
             activity?.finish()
         }
+    }
+
+    override fun onDismiss(dialog: DialogInterface) {
+        super.onDismiss(dialog)
+        (activity as? PageActivity)?.onJuzCompletionDialogDismissed()
     }
 
     override fun dismiss() {

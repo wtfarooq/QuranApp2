@@ -144,19 +144,20 @@ class PageActivity : AppCompatActivity() {
                 val page = position + 1
 
                 flushPageTimer()
-                startPageTimer(page)
 
                 updateBookmarkIcon(page)
                 saveLastPage(page)
                 juzProgress.progress = juzProgressValues[page].toInt()
 
-                if (previousPage > 0) {
+                val dialogShown = if (previousPage > 0) {
                     val prevJuz = DatabaseHelper.juzForPage(previousPage)
                     val currJuz = DatabaseHelper.juzForPage(page)
-                    if (currJuz > prevJuz) {
-                        checkAndShowJuzCompletion(prevJuz)
-                    }
+                    if (currJuz > prevJuz) checkAndShowJuzCompletion(prevJuz) else false
+                } else false
+                if (!dialogShown) {
+                    startPageTimer(page)
                 }
+
                 previousPage = page
             }
 
@@ -216,11 +217,12 @@ class PageActivity : AppCompatActivity() {
         pageStartRealtime = 0L
     }
 
-    private fun checkAndShowJuzCompletion(completedJuz: Int) {
-        if (completedJuz >= 30) return
-        if (!dbHelper.allPagesReadInJuz(completedJuz)) return
+    /** @return true if the juz completion dialog was shown (caller should not start page timer). */
+    private fun checkAndShowJuzCompletion(completedJuz: Int): Boolean {
+        if (completedJuz >= 30) return false
+        if (!dbHelper.allPagesReadInJuz(completedJuz)) return false
 
-        val (totalMs, pageCount) = dbHelper.getJuzTimingStats(completedJuz) ?: return
+        val (totalMs, pageCount) = dbHelper.getJuzTimingStats(completedJuz) ?: return false
 
         // Gather comparison data (before recording)
         val overallAvg = dbHelper.getOverallAvgJuzTime(completedJuz)
@@ -248,6 +250,11 @@ class PageActivity : AppCompatActivity() {
             isPersonalBest = isPersonalBest,
             nextJuzDescription = nextJuzDescription
         ).show(supportFragmentManager, "juz_completion")
+        return true
+    }
+
+    fun onJuzCompletionDialogDismissed() {
+        startPageTimer(currentPage())
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {

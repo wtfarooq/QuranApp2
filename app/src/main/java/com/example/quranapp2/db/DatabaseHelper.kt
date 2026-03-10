@@ -29,7 +29,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         private const val COL_TOTAL_MS = "total_ms"
         private const val COL_PAGE_COUNT = "page_count"
 
-        private const val MIN_READ_TIME_MS = 1_000L
+        private const val MIN_READ_TIME_MS = 20_000L
 
         fun juzForPage(page: Int): Int {
             if (page <= 21) return 1

@@ -2,6 +2,7 @@ package com.example.quranapp2
 
 import android.app.Activity
 import android.content.Intent
+import android.graphics.drawable.GradientDrawable
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -9,6 +10,7 @@ import androidx.core.content.FileProvider
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.color.MaterialColors
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -129,6 +131,7 @@ object AppUpdateChecker {
         val dialog = BottomSheetDialog(activity)
         val root = android.widget.FrameLayout(activity)
         val view = LayoutInflater.from(activity).inflate(R.layout.bottom_sheet_update, root, false)
+        view.background = null
         dialog.setContentView(view)
 
         view.findViewById<MaterialButton>(R.id.updateNowBtn).setOnClickListener {
@@ -146,6 +149,12 @@ object AppUpdateChecker {
                 params.height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
                 bottomSheet.layoutParams = params
                 BottomSheetBehavior.from(bottomSheet).state = BottomSheetBehavior.STATE_EXPANDED
+                val radiusPx = 24 * bottomSheet.resources.displayMetrics.density
+                val shape = GradientDrawable().apply {
+                    setColor(MaterialColors.getColor(bottomSheet, com.google.android.material.R.attr.colorSurface))
+                    cornerRadii = floatArrayOf(radiusPx, radiusPx, radiusPx, radiusPx, 0f, 0f, 0f, 0f)
+                }
+                bottomSheet.background = shape
             }
         }
 
