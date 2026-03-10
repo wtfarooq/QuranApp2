@@ -12,7 +12,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.OvershootInterpolator
-import android.widget.FrameLayout
 import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -21,7 +20,7 @@ import androidx.core.content.edit
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
+import android.widget.FrameLayout
 import android.widget.ProgressBar
 import androidx.viewpager2.widget.ViewPager2
 import com.example.quranapp2.db.DatabaseHelper
@@ -46,7 +45,6 @@ class PageActivity : AppCompatActivity() {
     private val hideHandler = Handler(Looper.getMainLooper())
     private var iconsVisible = true
     private val hideIconsRunnable = Runnable { fadeOutIcons() }
-    private lateinit var insetsController: WindowInsetsControllerCompat
 
     private var timedPage: Int = -1
     private var pageStartRealtime: Long = 0L
@@ -64,13 +62,8 @@ class PageActivity : AppCompatActivity() {
             @Suppress("DEPRECATION")
             overridePendingTransition(0, 0)
         }
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowCompat.setDecorFitsSystemWindows(window, true)
         setContentView(R.layout.activity_page)
-
-        insetsController = WindowCompat.getInsetsController(window, window.decorView)
-        insetsController.systemBarsBehavior =
-            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        insetsController.hide(WindowInsetsCompat.Type.systemBars())
 
         darkModeBtn = findViewById(R.id.darkModeBtn)
         updateDarkModeIcon(darkModeBtn)
@@ -82,13 +75,15 @@ class PageActivity : AppCompatActivity() {
             adapter.saveVisibleScrollPosition(viewPager)
             oldBackgroundColor = resolveBackgroundColor()
             transitioning = true
-            val isNight = AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_YES
-            val newMode = if (isNight) AppCompatDelegate.MODE_NIGHT_NO else AppCompatDelegate.MODE_NIGHT_YES
+            val isNight =
+                AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_YES
+            val newMode =
+                if (isNight) AppCompatDelegate.MODE_NIGHT_NO else AppCompatDelegate.MODE_NIGHT_YES
             getSharedPreferences("settings", MODE_PRIVATE).edit { putInt("nightMode", newMode) }
             AppCompatDelegate.setDefaultNightMode(newMode)
         }
 
-        if(savedInstanceState == null)
+        if (savedInstanceState == null)
             pageNum = intent.getIntExtra("pageNum", 0)
         else
             pageNum = savedInstanceState.getInt("rotatePageNum")
@@ -100,27 +95,6 @@ class PageActivity : AppCompatActivity() {
         viewPager = findViewById(R.id.pageViewPager2)
         bookmarkBtn = findViewById(R.id.bookmarkBtn)
         juzProgress = findViewById(R.id.juzProgress)
-
-        val dp8 = (8 * resources.displayMetrics.density).toInt()
-        ViewCompat.setOnApplyWindowInsetsListener(viewPager) { v, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(0, 0, 0, bars.bottom)
-            (bookmarkBtn.layoutParams as FrameLayout.LayoutParams).apply {
-                topMargin = bars.top + dp8
-                marginStart = bars.left + dp8
-            }
-            (darkModeBtn.layoutParams as FrameLayout.LayoutParams).apply {
-                topMargin = bars.top + dp8
-                marginEnd = bars.right + dp8
-            }
-            (juzProgress.layoutParams as FrameLayout.LayoutParams).apply {
-                bottomMargin = bars.bottom
-            }
-            bookmarkBtn.requestLayout()
-            darkModeBtn.requestLayout()
-            juzProgress.requestLayout()
-            insets
-        }
 
         dbHelper = DatabaseHelper(this)
         adapter = PageAdapter(list, dbHelper)
@@ -161,17 +135,42 @@ class PageActivity : AppCompatActivity() {
                 previousPage = page
             }
 
-            override fun onPageScrolled(position: Int, positionOffset: Float, positionOffsetPixels: Int) {
+            override fun onPageScrolled(
+                position: Int,
+                positionOffset: Float,
+                positionOffsetPixels: Int
+            ) {
                 val curPage = (position + 1).coerceIn(1, 604)
                 val nxtPage = (position + 2).coerceIn(1, 604)
                 val interpolated = juzProgressValues[curPage] +
-                    (juzProgressValues[nxtPage] - juzProgressValues[curPage]) * positionOffset
+                        (juzProgressValues[nxtPage] - juzProgressValues[curPage]) * positionOffset
                 juzProgress.progress = interpolated.toInt()
             }
         })
 
         viewPager.alpha = 0f
         viewPager.adapter = adapter
+
+        val root = viewPager.parent as ViewGroup
+        val dp8 = (8 * resources.displayMetrics.density).toInt()
+        val dp12 = (12 * resources.displayMetrics.density).toInt()
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            (bookmarkBtn.layoutParams as FrameLayout.LayoutParams).apply {
+                marginStart = bars.left + dp8
+                topMargin = bars.top + dp12
+            }
+            (darkModeBtn.layoutParams as FrameLayout.LayoutParams).apply {
+                marginEnd = bars.right + dp8
+                topMargin = bars.top + dp12
+            }
+            bookmarkBtn.requestLayout()
+            darkModeBtn.requestLayout()
+            adapter.setSystemBarInsets(bars.left, bars.right, bars.bottom)
+            insets
+        }
+        ViewCompat.requestApplyInsets(root)
+
         viewPager.setCurrentItem(pageNum!! - 1, false)
         previousPage = pageNum!!
         viewPager.post {
@@ -273,7 +272,11 @@ class PageActivity : AppCompatActivity() {
     }
 
     private val slidePx by lazy {
-        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, ICON_SLIDE_DP, resources.displayMetrics)
+        TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            ICON_SLIDE_DP,
+            resources.displayMetrics
+        )
     }
 
     private fun fadeOutIcons() {
@@ -281,23 +284,20 @@ class PageActivity : AppCompatActivity() {
         iconsVisible = false
         bookmarkBtn.animate().cancel()
         darkModeBtn.animate().cancel()
-        juzProgress.animate().cancel()
-        bookmarkBtn.animate().alpha(0f).translationY(-slidePx).setDuration(ICON_FADE_DURATION).start()
-        darkModeBtn.animate().alpha(0f).translationY(-slidePx).setDuration(ICON_FADE_DURATION).start()
-        juzProgress.animate().alpha(0f).translationY(slidePx).setDuration(ICON_FADE_DURATION).start()
+        bookmarkBtn.animate().alpha(0f).translationY(-slidePx).setDuration(ICON_FADE_DURATION)
+            .start()
+        darkModeBtn.animate().alpha(0f).translationY(-slidePx).setDuration(ICON_FADE_DURATION)
+            .start()
     }
 
     private fun fadeInIcons() {
         iconsVisible = true
         bookmarkBtn.animate().cancel()
         darkModeBtn.animate().cancel()
-        juzProgress.animate().cancel()
         bookmarkBtn.translationY = -slidePx
         darkModeBtn.translationY = -slidePx
-        juzProgress.translationY = slidePx
         bookmarkBtn.animate().alpha(1f).translationY(0f).setDuration(ICON_FADE_DURATION).start()
         darkModeBtn.animate().alpha(1f).translationY(0f).setDuration(ICON_FADE_DURATION).start()
-        juzProgress.animate().alpha(1f).translationY(0f).setDuration(ICON_FADE_DURATION).start()
     }
 
     private fun currentPage(): Int = viewPager.currentItem + 1
@@ -336,10 +336,12 @@ class PageActivity : AppCompatActivity() {
 
         val burst = BurstView(this)
         val parent = bookmarkBtn.parent as ViewGroup
-        parent.addView(burst, ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-        ))
+        parent.addView(
+            burst, ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
         val cx = bookmarkBtn.x + bookmarkBtn.width / 2f
         val cy = bookmarkBtn.y + bookmarkBtn.height / 2f
         burst.startAt(cx, cy)
@@ -360,8 +362,8 @@ class PageActivity : AppCompatActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         adapter.saveVisibleScrollPosition(viewPager)
-        if(pageNum != null)
-            outState.putInt("rotatePageNum", viewPager.currentItem+1)
+        if (pageNum != null)
+            outState.putInt("rotatePageNum", viewPager.currentItem + 1)
     }
 
     override fun onDestroy() {
@@ -376,10 +378,12 @@ class PageActivity : AppCompatActivity() {
         val overlay = View(this)
         overlay.setBackgroundColor(color)
         val decorView = window.decorView as ViewGroup
-        decorView.addView(overlay, ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-        ))
+        decorView.addView(
+            overlay, ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
 
         overlay.animate()
             .alpha(0f)

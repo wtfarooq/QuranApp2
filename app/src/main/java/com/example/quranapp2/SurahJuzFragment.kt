@@ -8,16 +8,14 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.quranapp2.db.DatabaseHelper
 import com.example.quranapp2.db.QuranData
 import androidx.core.content.edit
 
-class SurahJuzFragment : Fragment(), SurahJuzAdapter.OnItemClickListener, BookmarkAdapter.OnBookmarkClickListener {
+class SurahJuzFragment : Fragment(), SurahJuzAdapter.OnItemClickListener,
+    BookmarkAdapter.OnBookmarkClickListener {
     private var recyclerView: RecyclerView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,15 +34,6 @@ class SurahJuzFragment : Fragment(), SurahJuzAdapter.OnItemClickListener, Bookma
         recyclerView?.layoutManager = LinearLayoutManager(context)
         recyclerView?.setHasFixedSize(true)
 
-        recyclerView?.let { rv ->
-            val basePadding = rv.paddingBottom
-            ViewCompat.setOnApplyWindowInsetsListener(rv) { v, insets ->
-                val navBar = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-                v.updatePadding(bottom = basePadding + navBar.bottom)
-                insets
-            }
-        }
-
         val position = arguments?.getInt("position")
         val dbHelper = context?.let { DatabaseHelper(it) }
         when (position) {
@@ -52,10 +41,12 @@ class SurahJuzFragment : Fragment(), SurahJuzAdapter.OnItemClickListener, Bookma
                 val list = dbHelper?.let { toSurahJuzItem(it.getJuzList()) } ?: ArrayList()
                 recyclerView?.adapter = SurahJuzAdapter(list, this)
             }
+
             1 -> {
                 val list = dbHelper?.let { toSurahJuzItem(it.getSurahList()) } ?: ArrayList()
                 recyclerView?.adapter = SurahJuzAdapter(list, this)
             }
+
             2 -> {
                 val list = dbHelper?.let { getBookmarkItems(it) } ?: ArrayList()
                 val bookmarkAdapter = BookmarkAdapter(list, this)
