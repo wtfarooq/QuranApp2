@@ -2,17 +2,22 @@ package com.example.quranapp2
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.TypedValue
+import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.OvershootInterpolator
+import android.widget.FrameLayout
 import android.widget.ImageButton
+import android.widget.ProgressBar
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
@@ -20,10 +25,11 @@ import androidx.core.content.edit
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import android.widget.FrameLayout
-import android.widget.ProgressBar
 import androidx.viewpager2.widget.ViewPager2
 import com.example.quranapp2.db.DatabaseHelper
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.color.MaterialColors
 
 class PageActivity : AppCompatActivity() {
 
@@ -32,13 +38,13 @@ class PageActivity : AppCompatActivity() {
         var transitioning = false
         private const val ICON_HIDE_DELAY = 4000L
         private const val ICON_FADE_DURATION = 300L
-        private const val ICON_SLIDE_DP = 24f
     }
 
     private var pageNum: Int? = null
     private lateinit var viewPager: ViewPager2
     private lateinit var bookmarkBtn: ImageButton
     private lateinit var darkModeBtn: ImageButton
+    private lateinit var juzProgressBtn: ImageButton
     private lateinit var juzProgress: ProgressBar
     private lateinit var adapter: PageAdapter
     private lateinit var dbHelper: DatabaseHelper
@@ -94,6 +100,7 @@ class PageActivity : AppCompatActivity() {
 
         viewPager = findViewById(R.id.pageViewPager2)
         bookmarkBtn = findViewById(R.id.bookmarkBtn)
+        juzProgressBtn = findViewById(R.id.juzProgressBtn)
         juzProgress = findViewById(R.id.juzProgress)
 
         dbHelper = DatabaseHelper(this)
@@ -164,9 +171,24 @@ class PageActivity : AppCompatActivity() {
                 marginEnd = bars.right + dp8
                 topMargin = bars.top + dp12
             }
+
+            val isLandscape =
+                resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            val dp48 = (48 * resources.displayMetrics.density).toInt()
+            (juzProgressBtn.layoutParams as FrameLayout.LayoutParams).apply {
+                if (isLandscape) {
+                    marginEnd = bars.right + dp8
+                    topMargin = bars.top + dp12 + dp48 + dp8
+                } else {
+                    marginEnd = bars.right + dp8 + dp48 + dp8
+                    topMargin = bars.top + dp12
+                }
+            }
+
             bookmarkBtn.requestLayout()
             darkModeBtn.requestLayout()
-            adapter.setSystemBarInsets(bars.left, bars.right, bars.bottom)
+            juzProgressBtn.requestLayout()
+            adapter.setSystemBarInsets(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
         ViewCompat.requestApplyInsets(root)
@@ -189,6 +211,56 @@ class PageActivity : AppCompatActivity() {
             }
             toggleBookmark(currentPage())
         }
+
+        juzProgressBtn.setOnClickListener {
+            showJuzProgressBottomSheet(DatabaseHelper.juzForPage(currentPage()))
+        }
+    }
+
+    private fun showJuzProgressBottomSheet(juz: Int) {
+        val dialog = BottomSheetDialog(this)
+        val root = FrameLayout(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_juz_progress, root, false)
+        view.background = null
+        view.layoutParams = FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        dialog.setContentView(view)
+        view.minimumWidth = resources.displayMetrics.widthPixels
+
+        view.findViewById<TextView>(R.id.juzTitle).text = getString(R.string.juz) + " $juz Progress"
+        val readPages = dbHelper.getReadPageNumbersInJuz(juz)
+        val pages = (DatabaseHelper.juzStartPage(juz)..DatabaseHelper.juzEndPage(juz)).toList()
+
+        val recyclerView =
+            view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.juzProgressRecyclerView)
+        recyclerView.adapter = JuzProgressAdapter(pages, readPages) { selectedPage ->
+            dialog.dismiss()
+            viewPager.setCurrentItem(selectedPage - 1, false)
+        }
+
+        dialog.setOnShowListener {
+            val bottomSheet =
+                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            bottomSheet?.let { sheet ->
+                BottomSheetBehavior.from(sheet).state = BottomSheetBehavior.STATE_EXPANDED
+                val radiusPx = 24 * sheet.resources.displayMetrics.density
+                val shape = GradientDrawable().apply {
+                    setColor(
+                        MaterialColors.getColor(
+                            sheet,
+                            com.google.android.material.R.attr.colorSurface
+                        )
+                    )
+                    cornerRadii =
+                        floatArrayOf(radiusPx, radiusPx, radiusPx, radiusPx, 0f, 0f, 0f, 0f)
+                }
+                sheet.background = shape
+            }
+        }
+
+        dialog.show()
     }
 
     override fun onResume() {
@@ -271,33 +343,43 @@ class PageActivity : AppCompatActivity() {
         hideHandler.postDelayed(hideIconsRunnable, ICON_HIDE_DELAY)
     }
 
-    private val slidePx by lazy {
-        TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            ICON_SLIDE_DP,
-            resources.displayMetrics
-        )
-    }
-
     private fun fadeOutIcons() {
         if (!iconsVisible) return
         iconsVisible = false
+        val interpolator = androidx.interpolator.view.animation.FastOutLinearInInterpolator()
+        val slideDist = -resources.displayMetrics.heightPixels * 0.15f
+
         bookmarkBtn.animate().cancel()
         darkModeBtn.animate().cancel()
-        bookmarkBtn.animate().alpha(0f).translationY(-slidePx).setDuration(ICON_FADE_DURATION)
-            .start()
-        darkModeBtn.animate().alpha(0f).translationY(-slidePx).setDuration(ICON_FADE_DURATION)
-            .start()
+        juzProgressBtn.animate().cancel()
+
+        bookmarkBtn.animate().alpha(0f).translationY(slideDist).setDuration(ICON_FADE_DURATION)
+            .setInterpolator(interpolator).start()
+        darkModeBtn.animate().alpha(0f).translationY(slideDist).setDuration(ICON_FADE_DURATION)
+            .setInterpolator(interpolator).start()
+        juzProgressBtn.animate().alpha(0f).translationY(slideDist).setDuration(ICON_FADE_DURATION)
+            .setInterpolator(interpolator).start()
     }
 
     private fun fadeInIcons() {
         iconsVisible = true
+        val interpolator = androidx.interpolator.view.animation.LinearOutSlowInInterpolator()
+        val slideDist = -resources.displayMetrics.heightPixels * 0.15f
+
         bookmarkBtn.animate().cancel()
         darkModeBtn.animate().cancel()
-        bookmarkBtn.translationY = -slidePx
-        darkModeBtn.translationY = -slidePx
-        bookmarkBtn.animate().alpha(1f).translationY(0f).setDuration(ICON_FADE_DURATION).start()
-        darkModeBtn.animate().alpha(1f).translationY(0f).setDuration(ICON_FADE_DURATION).start()
+        juzProgressBtn.animate().cancel()
+
+        bookmarkBtn.translationY = slideDist
+        darkModeBtn.translationY = slideDist
+        juzProgressBtn.translationY = slideDist
+
+        bookmarkBtn.animate().alpha(1f).translationY(0f).setDuration(ICON_FADE_DURATION)
+            .setInterpolator(interpolator).start()
+        darkModeBtn.animate().alpha(1f).translationY(0f).setDuration(ICON_FADE_DURATION)
+            .setInterpolator(interpolator).start()
+        juzProgressBtn.animate().alpha(1f).translationY(0f).setDuration(ICON_FADE_DURATION)
+            .setInterpolator(interpolator).start()
     }
 
     private fun currentPage(): Int = viewPager.currentItem + 1
@@ -350,12 +432,12 @@ class PageActivity : AppCompatActivity() {
     private fun updateBookmarkIcon(page: Int) {
         val prefs = getSharedPreferences("bookmarks", MODE_PRIVATE)
         val bookmarks = prefs.getStringSet("pages", mutableSetOf())!!
-        if (bookmarks.contains(page.toString())) {
+        val isBookmarked = bookmarks.contains(page.toString())
+        bookmarkBtn.isSelected = isBookmarked
+        if (isBookmarked) {
             bookmarkBtn.setImageResource(R.drawable.bookmark_filled)
-            bookmarkBtn.setColorFilter(ContextCompat.getColor(this, R.color.colorAccent))
         } else {
             bookmarkBtn.setImageResource(R.drawable.bookmark)
-            bookmarkBtn.setColorFilter(ContextCompat.getColor(this, R.color.iconTint))
         }
     }
 
@@ -423,5 +505,67 @@ class PageActivity : AppCompatActivity() {
     private fun updateDarkModeIcon(btn: ImageButton) {
         val isNight = AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_YES
         btn.setImageResource(if (isNight) R.drawable.ic_light_mode else R.drawable.ic_dark_mode)
+    }
+
+    private inner class JuzProgressAdapter(
+        private val pages: List<Int>,
+        private val readPages: Set<Int>,
+        private val onPageClick: (Int) -> Unit
+    ) : androidx.recyclerview.widget.RecyclerView.Adapter<JuzProgressAdapter.ViewHolder>() {
+
+        inner class ViewHolder(view: View) :
+            androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
+            val pageNumText: TextView = view.findViewById(R.id.pageNumText)
+
+            init {
+                view.setOnClickListener {
+                    val position = bindingAdapterPosition
+                    if (position != androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
+                        onPageClick(pages[position])
+                    }
+                }
+            }
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.juz_progress_item, parent, false)
+            return ViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            val page = pages[position]
+            holder.pageNumText.text = page.toString()
+            val isRead = page in readPages
+
+            val context = holder.itemView.context
+            if (isRead) {
+                holder.pageNumText.setBackgroundResource(R.drawable.bg_juz_progress_read_item)
+                val isNight =
+                    AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_YES
+                if (isNight) {
+                    holder.pageNumText.setTextColor(
+                        ContextCompat.getColor(
+                            context,
+                            R.color.colorPrimary
+                        )
+                    )
+                } else {
+                    holder.pageNumText.setTextColor(
+                        ContextCompat.getColor(
+                            context,
+                            R.color.comparisonBannerText
+                        )
+                    )
+                }
+            } else {
+                holder.pageNumText.background = null
+                val color =
+                    MaterialColors.getColor(holder.itemView, android.R.attr.textColorPrimary)
+                holder.pageNumText.setTextColor(color)
+            }
+        }
+
+        override fun getItemCount() = pages.size
     }
 }

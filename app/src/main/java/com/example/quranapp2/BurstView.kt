@@ -12,7 +12,12 @@ class BurstView(context: Context) : View(context) {
 
     private val lineCount = 8
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = ContextCompat.getColor(context, R.color.colorAccent)
+        val isNightMode =
+            context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        color = ContextCompat.getColor(
+            context,
+            if (isNightMode) R.color.iconTint else R.color.colorAccent
+        )
         strokeWidth = 6f
         strokeCap = Paint.Cap.ROUND
     }
@@ -47,8 +52,8 @@ class BurstView(context: Context) : View(context) {
 
         paint.alpha = ((1f - progress) * 255).toInt()
 
-        val iconEdge = 24f
-        val innerRadius = iconEdge + maxRadius * 0.5f * progress
+        val iconEdge = 36f
+        val innerRadius = iconEdge + maxRadius * 0.2f * progress
         val lineLength = maxRadius * 0.18f * (1f - progress)
 
         for (i in 0 until lineCount) {

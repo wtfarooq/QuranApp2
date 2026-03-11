@@ -20,11 +20,13 @@ class PageAdapter(
 ) : RecyclerView.Adapter<PageAdapter.PageViewHolder>() {
 
     private var insetsLeft = 0
+    private var insetsTop = 0
     private var insetsRight = 0
     private var insetsBottom = 0
 
-    fun setSystemBarInsets(left: Int, right: Int, bottom: Int) {
+    fun setSystemBarInsets(left: Int, top: Int, right: Int, bottom: Int) {
         insetsLeft = left
+        insetsTop = top
         insetsRight = right
         insetsBottom = bottom
         notifyItemRangeChanged(0, itemCount)
@@ -70,6 +72,8 @@ class PageAdapter(
         holder.pageNumber.text = page.toString()
         holder.surahName.text = dbHelper.getSurahForPage(page).substringBefore(" (")
         holder.juzName.text = dbHelper.getJuzForPage(page).substringBefore(" -")
+
+        holder.pageImg.setPaddingRelative(0, insetsTop, 0, 0)
 
         val density = holder.itemView.context.resources.displayMetrics.density
         val minSide = (16 * density).toInt().coerceAtLeast(0)

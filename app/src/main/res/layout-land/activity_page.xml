@@ -10,8 +10,8 @@
         android:id="@+id/pageViewPager2"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="horizontal"
-        android:layoutDirection="rtl" />
+        android:layoutDirection="rtl"
+        android:orientation="horizontal" />
 
     <ImageButton
         android:id="@+id/bookmarkBtn"
@@ -22,20 +22,34 @@
         android:layout_marginTop="12dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/bookmark"
+        android:padding="8dp"
         android:src="@drawable/bookmark"
-        android:padding="8dp" />
+        android:tint="@color/bookmark_toggle_color" />
 
     <ImageButton
         android:id="@+id/darkModeBtn"
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:layout_gravity="top|end"
-        android:layout_marginEnd="8dp"
         android:layout_marginTop="12dp"
+        android:layout_marginEnd="8dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/toggle_dark_mode"
-        android:src="@drawable/ic_dark_mode"
         android:padding="8dp"
+        android:src="@drawable/ic_dark_mode"
+        app:tint="@color/iconTint" />
+
+    <ImageButton
+        android:id="@+id/juzProgressBtn"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="68dp"
+        android:layout_marginEnd="8dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/juz_progress"
+        android:padding="8dp"
+        android:src="@drawable/ic_history"
         app:tint="@color/iconTint" />
 
     <ProgressBar
@@ -47,7 +61,7 @@
         android:layoutDirection="rtl"
         android:max="1000"
         android:progress="0"
-        android:progressTint="@color/juzProgressTint"
-        android:progressBackgroundTint="@android:color/transparent" />
+        android:progressBackgroundTint="@android:color/transparent"
+        android:progressTint="@color/juzProgressTint" />
 
 </FrameLayout>

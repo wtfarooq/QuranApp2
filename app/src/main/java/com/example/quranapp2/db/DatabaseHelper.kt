@@ -7,7 +7,8 @@ import android.database.sqlite.SQLiteOpenHelper
 
 data class QuranData(val id: Int, val name: String, val description: String, val pageNumber: Int)
 
-class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
+class DatabaseHelper(context: Context) :
+    SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
     companion object {
         private const val DATABASE_NAME = "quran.db"
@@ -671,7 +672,8 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             "SELECT $COL_ID, $COL_NAME FROM $TABLE_JUZ WHERE $COL_PAGE_NUMBER <= ? ORDER BY $COL_PAGE_NUMBER DESC LIMIT 1",
             arrayOf(page.toString())
         )
-        val name = if (cursor.moveToFirst()) "Juz ${cursor.getInt(0)} - ${cursor.getString(1)}" else ""
+        val name =
+            if (cursor.moveToFirst()) "Juz ${cursor.getInt(0)} - ${cursor.getString(1)}" else ""
         cursor.close()
         return name
     }
@@ -696,12 +698,29 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         val db = this.readableDatabase
         val cursor = db.rawQuery(
             "SELECT COUNT(*) FROM $TABLE_PAGE_TIMING WHERE $COL_PAGE BETWEEN ? AND ? AND " +
-                "(($COL_PAGE <= 2 AND $COL_ACTIVE_MS > 0) OR ($COL_PAGE > 2 AND $COL_ACTIVE_MS >= ?))",
+                    "(($COL_PAGE <= 2 AND $COL_ACTIVE_MS > 0) OR ($COL_PAGE > 2 AND $COL_ACTIVE_MS >= ?))",
             arrayOf(startPage.toString(), endPage.toString(), MIN_READ_TIME_MS.toString())
         )
         val count = if (cursor.moveToFirst()) cursor.getInt(0) else 0
         cursor.close()
         return count >= totalPages
+    }
+
+    fun getReadPageNumbersInJuz(juz: Int): Set<Int> {
+        val startPage = juzStartPage(juz)
+        val endPage = juzEndPage(juz)
+        val db = readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT $COL_PAGE FROM $TABLE_PAGE_TIMING WHERE $COL_PAGE BETWEEN ? AND ? AND " +
+                    "(($COL_PAGE <= 2 AND $COL_ACTIVE_MS > 0) OR ($COL_PAGE > 2 AND $COL_ACTIVE_MS >= ?))",
+            arrayOf(startPage.toString(), endPage.toString(), MIN_READ_TIME_MS.toString())
+        )
+        val set = mutableSetOf<Int>()
+        while (cursor.moveToNext()) {
+            set.add(cursor.getInt(0))
+        }
+        cursor.close()
+        return set
     }
 
     fun getJuzTimingStats(juz: Int): Pair<Long, Int>? {
@@ -711,7 +730,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         val db = this.readableDatabase
         val cursor = db.rawQuery(
             "SELECT SUM($COL_ACTIVE_MS), COUNT(*) FROM $TABLE_PAGE_TIMING " +
-                "WHERE $COL_PAGE BETWEEN ? AND ? AND $COL_ACTIVE_MS > 0",
+                    "WHERE $COL_PAGE BETWEEN ? AND ? AND $COL_ACTIVE_MS > 0",
             arrayOf(startPage.toString(), endPage.toString())
         )
         val result = if (cursor.moveToFirst() && cursor.getInt(1) > 0) {
@@ -729,7 +748,12 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             put(COL_TOTAL_MS, totalMs)
             put(COL_PAGE_COUNT, pageCount)
         }
-        db.insertWithOnConflict(TABLE_JUZ_COMPLETIONS, null, values, SQLiteDatabase.CONFLICT_REPLACE)
+        db.insertWithOnConflict(
+            TABLE_JUZ_COMPLETIONS,
+            null,
+            values,
+            SQLiteDatabase.CONFLICT_REPLACE
+        )
     }
 
     fun getOverallAvgJuzTime(excludeJuz: Int): Long? {

@@ -44,7 +44,10 @@ class BookmarkAdapter(
         holder.pageView.text = currentItem.page.toString()
 
         val context = holder.itemView.context
-        val defaultCardColor = MaterialColors.getColor(holder.itemView, com.google.android.material.R.attr.colorSurface)
+        val defaultCardColor = MaterialColors.getColor(
+            holder.itemView,
+            com.google.android.material.R.attr.colorSurface
+        )
 
         if (position == deleteMode) {
             holder.actionIcon.setImageResource(R.drawable.delete)
@@ -59,7 +62,7 @@ class BookmarkAdapter(
         }
 
         holder.itemView.setOnClickListener {
-            val pos = holder.adapterPosition
+            val pos = holder.bindingAdapterPosition
             if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
             if (deleteMode != -1) {
                 val old = deleteMode
@@ -71,7 +74,7 @@ class BookmarkAdapter(
         }
 
         holder.itemView.setOnLongClickListener {
-            val pos = holder.adapterPosition
+            val pos = holder.bindingAdapterPosition
             if (pos == RecyclerView.NO_POSITION) return@setOnLongClickListener false
             val old = deleteMode
             deleteMode = pos
@@ -81,7 +84,7 @@ class BookmarkAdapter(
         }
 
         holder.actionIcon.setOnClickListener {
-            val pos = holder.adapterPosition
+            val pos = holder.bindingAdapterPosition
             if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
             if (pos == deleteMode) {
                 deleteMode = -1
