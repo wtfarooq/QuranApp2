@@ -1,6 +1,9 @@
 package com.example.quranapp2
 
 import android.app.Activity
+import android.app.ActivityManager
+import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.GradientDrawable
 import androidx.core.content.edit
@@ -14,20 +17,40 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.color.MaterialColors
 import org.json.JSONObject
 import java.io.File
-import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
 object AppUpdateChecker {
 
+    const val DOWNLOAD_NOTIFICATION_ID = 2001
+    const val ACTION_UPDATE_DOWNLOAD_COMPLETE = "com.example.quranapp2.UPDATE_DOWNLOAD_COMPLETE"
+    const val EXTRA_APK_PATH = "apk_path"
+
     private const val TAG = "AppUpdateChecker"
     private const val PREFS_UPDATE = "update_checker"
     private const val KEY_PENDING_APK_PATH = "pending_apk_path"
 
+    fun cancelDownloadNotification(context: Context) {
+        (context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager)
+            ?.cancel(DOWNLOAD_NOTIFICATION_ID)
+    }
+
+    private fun isUpdateDownloadRunning(context: Context): Boolean {
+        val am =
+            context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return false
+        @Suppress("DEPRECATION")
+        return am.getRunningServices(Int.MAX_VALUE)
+            .any { it.service.className == UpdateDownloadService::class.java.name }
+    }
+
     fun checkForUpdate(activity: Activity) {
         Thread {
             try {
-                val release = fetchLatestRelease() ?: return@Thread
+                val release = fetchLatestRelease()
+                if (release == null) {
+                    activity.runOnUiThread { showUpdateDialogIfDownloaded(activity) }
+                    return@Thread
+                }
                 val latestVersion = release.getString("tag_name").removePrefix("v")
 
                 if (!isNewer(latestVersion)) {
@@ -46,22 +69,30 @@ object AppUpdateChecker {
                 }
                 if (apkUrl == null) return@Thread
 
-                val updateDir = File(activity.cacheDir, "updates")
+                val updateDir = getUpdateDir(activity)
                 updateDir.mkdirs()
                 val apkFile = File(updateDir, "update-$latestVersion.apk")
 
-                if (!apkFile.exists()) {
-                    downloadApk(apkUrl, apkFile)
-                }
-
-                activity.runOnUiThread {
-                    if (!activity.isFinishing && !activity.isDestroyed) {
-                        showUpdateDialog(activity, apkFile)
-                    } else {
-                        activity.applicationContext.getSharedPreferences(PREFS_UPDATE, Activity.MODE_PRIVATE).edit {
-                            putString(KEY_PENDING_APK_PATH, apkFile.absolutePath)
+                if (apkFile.exists()) {
+                    if (isUpdateDownloadRunning(activity.applicationContext)) return@Thread
+                    activity.runOnUiThread {
+                        if (!activity.isFinishing && !activity.isDestroyed) {
+                            showUpdateDialog(activity, apkFile)
+                        } else {
+                            activity.applicationContext.getSharedPreferences(
+                                PREFS_UPDATE,
+                                Activity.MODE_PRIVATE
+                            ).edit {
+                                putString(KEY_PENDING_APK_PATH, apkFile.absolutePath)
+                            }
                         }
                     }
+                } else {
+                    UpdateDownloadService.start(
+                        activity.applicationContext,
+                        apkUrl,
+                        apkFile.absolutePath
+                    )
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Update check failed", e)
@@ -90,54 +121,87 @@ object AppUpdateChecker {
         }
     }
 
-    private fun downloadApk(assetUrl: String, destination: File) {
-        val url = URL(assetUrl)
-        val conn = url.openConnection() as HttpURLConnection
-        conn.setRequestProperty("Accept", "application/octet-stream")
-        conn.instanceFollowRedirects = true
-        conn.connectTimeout = 30_000
-        conn.readTimeout = 60_000
+    private fun isNewer(remote: String): Boolean =
+        isVersionNewer(remote, BuildConfig.VERSION_NAME)
 
-        try {
-            conn.inputStream.use { input ->
-                FileOutputStream(destination).use { output ->
-                    input.copyTo(output)
-                }
-            }
-        } finally {
-            conn.disconnect()
-        }
-    }
-
-    private fun isNewer(remote: String): Boolean {
-        val local = BuildConfig.VERSION_NAME
-        val remoteParts = remote.split(".").map { it.toIntOrNull() ?: 0 }
-        val localParts = local.split(".").map { it.toIntOrNull() ?: 0 }
-        val len = maxOf(remoteParts.size, localParts.size)
+    private fun isVersionNewer(a: String, b: String): Boolean {
+        val aParts = a.split(".").map { it.toIntOrNull() ?: 0 }
+        val bParts = b.split(".").map { it.toIntOrNull() ?: 0 }
+        val len = maxOf(aParts.size, bParts.size)
         for (i in 0 until len) {
-            val r = remoteParts.getOrElse(i) { 0 }
-            val l = localParts.getOrElse(i) { 0 }
-            if (r > l) return true
-            if (r < l) return false
+            val x = aParts.getOrElse(i) { 0 }
+            val y = bParts.getOrElse(i) { 0 }
+            if (x > y) return true
+            if (x < y) return false
         }
         return false
     }
 
-    fun showPendingUpdateIfAny(activity: Activity) {
-        if (activity.isFinishing || activity.isDestroyed) return
-        val path = activity.getSharedPreferences(PREFS_UPDATE, Activity.MODE_PRIVATE).getString(KEY_PENDING_APK_PATH, null) ?: return
+    fun showPendingUpdateIfAny(activity: Activity): Boolean {
+        if (activity.isFinishing || activity.isDestroyed) return false
+        val path = activity.getSharedPreferences(PREFS_UPDATE, Activity.MODE_PRIVATE)
+            .getString(KEY_PENDING_APK_PATH, null) ?: return false
         val apkFile = File(path)
+        if (!apkFile.exists()) return false
+        activity.getSharedPreferences(PREFS_UPDATE, Activity.MODE_PRIVATE)
+            .edit { remove(KEY_PENDING_APK_PATH) }
+        showUpdateDialog(activity, apkFile)
+        return true
+    }
+
+    /**
+     * If an update APK was downloaded (e.g. while user was in PageActivity or app was backgrounded),
+     * show the update dialog. No network. Skips if download is still in progress.
+     */
+    fun showUpdateDialogIfDownloaded(activity: Activity) {
+        if (activity.isFinishing || activity.isDestroyed) return
+        if (isUpdateDownloadRunning(activity.applicationContext)) return
+        val updateDir = getUpdateDir(activity)
+        if (!updateDir.exists()) return
+        val apkFiles = updateDir.listFiles()
+            ?.filter { it.isFile && it.name.endsWith(".apk") && it.name.startsWith("update-") }
+            ?: return
+        var bestFile: File? = null
+        var bestVersion: String? = null
+        for (file in apkFiles) {
+            val version = file.name.removePrefix("update-").removeSuffix(".apk")
+            if (!isNewer(version)) continue
+            if (bestVersion == null || isVersionNewer(version, bestVersion)) {
+                bestVersion = version
+                bestFile = file
+            }
+        }
+        bestFile?.let { showUpdateDialog(activity, it) }
+    }
+
+    /**
+     * Show the update dialog for an APK at the given path. Used when download completes
+     * while the user is in MainActivity (via broadcast).
+     */
+    fun showUpdateDialogForPath(activity: Activity, apkPath: String) {
+        if (activity.isFinishing || activity.isDestroyed) return
+        val apkFile = File(apkPath)
         if (!apkFile.exists()) return
-        activity.getSharedPreferences(PREFS_UPDATE, Activity.MODE_PRIVATE).edit { remove(KEY_PENDING_APK_PATH) }
         showUpdateDialog(activity, apkFile)
     }
 
+    private fun getUpdateDir(context: Context): File {
+        val root = context.getExternalFilesDir(null) ?: context.cacheDir
+        return File(root, "updates")
+    }
+
     private fun deleteDownloadedApks(activity: Activity) {
-        val updateDir = File(activity.cacheDir, "updates")
+        val updateDir = getUpdateDir(activity)
         if (!updateDir.exists()) return
         updateDir.listFiles()?.forEach { file ->
             if (file.name.endsWith(".apk")) {
                 file.delete()
+            }
+        }
+        val legacyCacheDir = File(activity.cacheDir, "updates")
+        if (legacyCacheDir.exists()) {
+            legacyCacheDir.listFiles()?.forEach { file ->
+                if (file.name.endsWith(".apk")) file.delete()
             }
         }
     }
@@ -152,6 +216,7 @@ object AppUpdateChecker {
 
         view.findViewById<MaterialButton>(R.id.updateNowBtn).setOnClickListener {
             dialog.dismiss()
+            cancelDownloadNotification(activity.applicationContext)
             installApk(activity, apkFile)
         }
         view.findViewById<View>(R.id.maybeLaterBtn).setOnClickListener {
@@ -159,7 +224,8 @@ object AppUpdateChecker {
         }
 
         dialog.setOnShowListener {
-            val bottomSheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            val bottomSheet =
+                dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
             bottomSheet?.post {
                 val params = bottomSheet.layoutParams ?: return@post
                 params.height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
@@ -167,8 +233,14 @@ object AppUpdateChecker {
                 BottomSheetBehavior.from(bottomSheet).state = BottomSheetBehavior.STATE_EXPANDED
                 val radiusPx = 24 * bottomSheet.resources.displayMetrics.density
                 val shape = GradientDrawable().apply {
-                    setColor(MaterialColors.getColor(bottomSheet, com.google.android.material.R.attr.colorSurface))
-                    cornerRadii = floatArrayOf(radiusPx, radiusPx, radiusPx, radiusPx, 0f, 0f, 0f, 0f)
+                    setColor(
+                        MaterialColors.getColor(
+                            bottomSheet,
+                            com.google.android.material.R.attr.colorSurface
+                        )
+                    )
+                    cornerRadii =
+                        floatArrayOf(radiusPx, radiusPx, radiusPx, radiusPx, 0f, 0f, 0f, 0f)
                 }
                 bottomSheet.background = shape
             }
@@ -177,7 +249,8 @@ object AppUpdateChecker {
         dialog.show()
     }
 
-    private fun installApk(activity: Activity, apkFile: File) {
+    internal fun installApk(activity: Activity, apkFile: File) {
+        cancelDownloadNotification(activity.applicationContext)
         val uri = FileProvider.getUriForFile(
             activity,
             "${activity.packageName}.fileprovider",

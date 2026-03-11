@@ -33,4 +33,7 @@
     <string name="update_now">Update Now</string>
     <string name="maybe_later">Maybe Later</string>
     <string name="update_icon_desc">Update</string>
+    <string name="notification_channel_updates">App updates</string>
+    <string name="notification_download_complete">Update ready to install</string>
+    <string name="notification_action_install">Install Now</string>
 </resources>

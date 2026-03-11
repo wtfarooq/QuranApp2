@@ -2,7 +2,12 @@ package com.example.quranapp2
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.os.Build
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
@@ -13,6 +18,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import android.os.Bundle
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -27,16 +33,28 @@ import androidx.core.content.edit
 class MainActivity : AppCompatActivity() {
 
     companion object {
+        private const val REQUEST_POST_NOTIFICATIONS = 1001
         var oldBackgroundColor: Int? = null
         var transitioning = false
     }
 
     private var currentAppBarOffset = 0
 
+    private val updateDownloadCompleteReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val path = intent?.getStringExtra(AppUpdateChecker.EXTRA_APK_PATH) ?: return
+            if (!isFinishing && !isDestroyed) {
+                AppUpdateChecker.showUpdateDialogForPath(this@MainActivity, path)
+            }
+        }
+    }
+
+    private var updateDownloadReceiverRegistered = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         applySavedNightMode()
         super.onCreate(savedInstanceState)
-        if (android.os.Build.VERSION.SDK_INT >= 34) {
+        if (Build.VERSION.SDK_INT >= 34) {
             overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
         } else {
             @Suppress("DEPRECATION")
@@ -44,6 +62,21 @@ class MainActivity : AppCompatActivity() {
         }
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                )
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                    REQUEST_POST_NOTIFICATIONS
+                )
+            }
+        }
 
         val isDarkModeTransition = transitioning
 
@@ -79,8 +112,10 @@ class MainActivity : AppCompatActivity() {
             oldBackgroundColor = resolveBackgroundColor()
             transitioning = true
             saveAppBarOffset()
-            val isNight = AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_YES
-            val newMode = if (isNight) AppCompatDelegate.MODE_NIGHT_NO else AppCompatDelegate.MODE_NIGHT_YES
+            val isNight =
+                AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_YES
+            val newMode =
+                if (isNight) AppCompatDelegate.MODE_NIGHT_NO else AppCompatDelegate.MODE_NIGHT_YES
             getSharedPreferences("settings", MODE_PRIVATE).edit { putInt("nightMode", newMode) }
             AppCompatDelegate.setDefaultNightMode(newMode)
         }
@@ -95,18 +130,20 @@ class MainActivity : AppCompatActivity() {
         viewPager2.adapter = adapter
 
         TabLayoutMediator(tabLayout, viewPager2) { tab, position ->
-            when(position) {
+            when (position) {
                 0 -> {
                     tab.text = getString(R.string.juz)
-                    tab.icon = ContextCompat.getDrawable(this,R.drawable.juz)
+                    tab.icon = ContextCompat.getDrawable(this, R.drawable.juz)
                 }
+
                 1 -> {
                     tab.text = getString(R.string.surah)
-                    tab.icon = ContextCompat.getDrawable(this,R.drawable.surah)
+                    tab.icon = ContextCompat.getDrawable(this, R.drawable.surah)
                 }
+
                 2 -> {
                     tab.text = getString(R.string.bookmarks)
-                    tab.icon = ContextCompat.getDrawable(this,R.drawable.bookmark_filled)
+                    tab.icon = ContextCompat.getDrawable(this, R.drawable.bookmark_filled)
                 }
             }
         }.attach()
@@ -126,8 +163,26 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (!updateDownloadReceiverRegistered) {
+            val filter = IntentFilter(AppUpdateChecker.ACTION_UPDATE_DOWNLOAD_COMPLETE)
+            ContextCompat.registerReceiver(
+                this,
+                updateDownloadCompleteReceiver,
+                filter,
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+            updateDownloadReceiverRegistered = true
+        }
         AppUpdateChecker.showPendingUpdateIfAny(this)
         updateContinueCard()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (updateDownloadReceiverRegistered) {
+            unregisterReceiver(updateDownloadCompleteReceiver)
+            updateDownloadReceiverRegistered = false
+        }
     }
 
     private fun saveAppBarOffset() {
@@ -142,10 +197,12 @@ class MainActivity : AppCompatActivity() {
         val overlay = View(this)
         overlay.setBackgroundColor(color)
         val decorView = window.decorView as ViewGroup
-        decorView.addView(overlay, ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-        ))
+        decorView.addView(
+            overlay, ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
 
         overlay.animate()
             .alpha(0f)
