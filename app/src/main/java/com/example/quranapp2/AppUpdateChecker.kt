@@ -3,6 +3,7 @@ package com.example.quranapp2
 import android.app.Activity
 import android.content.Intent
 import android.graphics.drawable.GradientDrawable
+import androidx.core.content.edit
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -20,6 +21,8 @@ import java.net.URL
 object AppUpdateChecker {
 
     private const val TAG = "AppUpdateChecker"
+    private const val PREFS_UPDATE = "update_checker"
+    private const val KEY_PENDING_APK_PATH = "pending_apk_path"
 
     fun checkForUpdate(activity: Activity) {
         Thread {
@@ -54,6 +57,10 @@ object AppUpdateChecker {
                 activity.runOnUiThread {
                     if (!activity.isFinishing && !activity.isDestroyed) {
                         showUpdateDialog(activity, apkFile)
+                    } else {
+                        activity.applicationContext.getSharedPreferences(PREFS_UPDATE, Activity.MODE_PRIVATE).edit {
+                            putString(KEY_PENDING_APK_PATH, apkFile.absolutePath)
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -114,6 +121,15 @@ object AppUpdateChecker {
             if (r < l) return false
         }
         return false
+    }
+
+    fun showPendingUpdateIfAny(activity: Activity) {
+        if (activity.isFinishing || activity.isDestroyed) return
+        val path = activity.getSharedPreferences(PREFS_UPDATE, Activity.MODE_PRIVATE).getString(KEY_PENDING_APK_PATH, null) ?: return
+        val apkFile = File(path)
+        if (!apkFile.exists()) return
+        activity.getSharedPreferences(PREFS_UPDATE, Activity.MODE_PRIVATE).edit { remove(KEY_PENDING_APK_PATH) }
+        showUpdateDialog(activity, apkFile)
     }
 
     private fun deleteDownloadedApks(activity: Activity) {

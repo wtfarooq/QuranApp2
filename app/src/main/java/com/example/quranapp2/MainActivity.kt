@@ -126,6 +126,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        AppUpdateChecker.showPendingUpdateIfAny(this)
         updateContinueCard()
     }
 
